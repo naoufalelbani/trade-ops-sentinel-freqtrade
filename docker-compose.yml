@@ -1,0 +1,21 @@
+services:
+  bnb-fees-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bnb-fees-monitor
+    restart: unless-stopped
+    env_file:
+      - .env
+    user: "0:0"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - ft_userdata_default
+    volumes:
+      - ./data:/app/data
+
+networks:
+  ft_userdata_default:
+    external: true
