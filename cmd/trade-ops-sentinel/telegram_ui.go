@@ -288,7 +288,7 @@ func feeCurrencyKeyboard() *inlineKeyboardMarkup {
 
 func helpText() string {
 	return strings.Join([]string{
-		"BNB Fees Monitor - Help",
+		"Trade Ops Sentinel - Help",
 		"",
 		"Commands:",
 		"/start or /menu - open menu",

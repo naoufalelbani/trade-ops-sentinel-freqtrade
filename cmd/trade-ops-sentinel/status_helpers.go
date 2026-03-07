@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bnb-fees-monitor/internal/domain"
+	"trade-ops-sentinel/internal/domain"
 	"context"
 	"fmt"
 	"os"

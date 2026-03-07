@@ -1,7 +1,7 @@
 package main
 
 import (
-	telegramiface "bnb-fees-monitor/internal/interfaces/telegram"
+	telegramiface "trade-ops-sentinel/internal/interfaces/telegram"
 	"context"
 	"fmt"
 	"log"

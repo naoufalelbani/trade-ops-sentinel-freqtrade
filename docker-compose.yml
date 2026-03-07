@@ -1,13 +1,12 @@
 services:
-  bnb-fees-monitor:
+  trade-ops-sentinel:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bnb-fees-monitor
+    container_name: trade-ops-sentinel
     restart: unless-stopped
     env_file:
       - .env
-    user: "0:0"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

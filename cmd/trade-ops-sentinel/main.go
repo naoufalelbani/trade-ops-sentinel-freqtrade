@@ -102,12 +102,12 @@ func main() {
 		restartCount = 0
 	}
 	startup := fmt.Sprintf(
-		"BNB fee monitor started\nSymbol=%s\n%s\nTracked symbols=%d\nInterval=%s\nContainer=%s Restarts=%d",
+		"Trade Ops Sentinel started\nSymbol=%s\n%s\nTracked symbols=%d\nInterval=%s\nContainer=%s Restarts=%d",
 		cfg.Symbol,
 		cfg.thresholdModeLine(),
 		len(cfg.TrackedSymbols),
 		cfg.CheckInterval,
-		strings.TrimSpace(orDefault(os.Getenv("HOSTNAME"), "bnb-fees-monitor")),
+		strings.TrimSpace(orDefault(os.Getenv("HOSTNAME"), "trade-ops-sentinel")),
 		restartCount,
 	)
 	if err := notifier.Send(startup, defaultKeyboard()); err != nil {

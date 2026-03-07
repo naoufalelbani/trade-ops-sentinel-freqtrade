@@ -59,7 +59,7 @@ type serviceHeartbeat struct {
 func newAlertManager(cfg Config, notifier *TelegramNotifier) *alertManager {
 	host := strings.TrimSpace(os.Getenv("HOSTNAME"))
 	if host == "" {
-		host = "bnb-fees-monitor"
+		host = "trade-ops-sentinel"
 	}
 	return &alertManager{
 		botContainerName: host,

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bnb-fees-monitor/internal/services/charts"
+	"trade-ops-sentinel/internal/services/charts"
 	"context"
 	"sort"
 	"strconv"

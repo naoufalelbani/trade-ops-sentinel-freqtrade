@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bnb-fees-monitor/internal/services"
-	"bnb-fees-monitor/internal/infra/worldtime"
+	"trade-ops-sentinel/internal/services"
+	"trade-ops-sentinel/internal/infra/worldtime"
 	"context"
 	"fmt"
 	"log"

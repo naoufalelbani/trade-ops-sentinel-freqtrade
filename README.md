@@ -1,97 +1,313 @@
-# BNB Fees Monitor (Go + Docker)
+# Trade Ops Sentinel
 
-Monitors your BNB balance for Freqtrade fee payments, auto-buys BNB when low, and provides Telegram buttons plus automatic daily reports with charts.
+Automated BNB fee management and portfolio reporting for Binance spot accounts, with Telegram controls, chart reporting, and optional Freqtrade-aware analytics.
 
-## Features
+## Why I Built This
 
-- Auto top-up BNB for trading fees (`MIN_BNB_THRESHOLD` -> `TARGET_BNB`)
-- Optional quote-based threshold mode (`MIN_BNB_THRESHOLD_USDT` -> `TARGET_BNB_USDT`)
-- Optional ratio mode (`BNB_RATIO_MODE=true`) to keep BNB as a % of total account value
-- Telegram inline buttons:
-  - `Status`
-  - `Daily Report Now`
-  - `Daily Report / Weekly Report / Monthly Report`
-  - `Fees Day / Week / Month`
-  - `Trades Day / Week / Month`
-  - `PnL 7d Table` (Freqtrade-like table format + refresh button)
-  - `PnL Day / Week / Month`
-  - `Fees Chart` and `PnL Chart`
-- Automatic daily Telegram report (summary + fees chart + portfolio chart + pnl chart)
-- Daily report mode: `full` (charts) or `digest` (one compact message)
-- Heartbeat monitor with stale-check alerts and optional external ping URL
-- API failure alerts (auth/network failures + timeout spike detection)
-- Abnormal move alerts for portfolio drops (1h / 24h thresholds)
-- Optional auto timezone (`DAILY_REPORT_TIMEZONE=AUTO`) for travel/network-aware scheduling
-- Persists snapshots to local state file for PnL tracking
-- Optional Redis cache for Binance trade history windows and price map
-- SQLite trade store with incremental sync (fetches only missing trades after first sync)
-- Dockerized (no local Go install needed)
+I created this project because I wanted a reliable way to make sure there is always enough BNB available to pay trading fees. Running out of BNB at the wrong time can interrupt strategy execution, so this bot monitors balances continuously, refills automatically when needed, and reports status through Telegram.
 
-## Configure
+## What It Does
+
+- Monitors BNB balance and automatically buys BNB when it drops below threshold.
+- Supports three threshold strategies:
+  - `BNB` units (`MIN_BNB_THRESHOLD`, `TARGET_BNB`)
+  - quote value (`MIN_BNB_THRESHOLD_USDT`, `TARGET_BNB_USDT`)
+  - portfolio ratio (`BNB_RATIO_MODE=true`, `BNB_RATIO_MIN`, `BNB_RATIO_TARGET`)
+- Sends Telegram status, reports, and charts.
+- Builds daily reports in `full` (message + charts) or `digest` mode.
+- Supports Freqtrade trade history mode (`TRACKED_SYMBOLS=FREQTRADE`).
+- Includes runtime watchdog/heartbeat and API failure alerting.
+- Persists state locally and optionally stores trades in SQLite and cache in Redis.
+
+## Core Features
+
+- Auto-refill with cooldown and exchange min-notional safety checks.
+- Manual actions from Telegram (`Refill Now`, `Force Buy BNB`).
+- Daily/weekly/monthly reports for fees, PnL, and trade summaries.
+- Cumulative profit/fees charts with preset, custom, and date-range windows.
+- Freqtrade health checks from Telegram settings menu.
+- Service/API health dashboard information in status and alerts.
+
+## Architecture
+
+- `cmd/trade-ops-sentinel`: main application runtime and integrations.
+- `internal/domain`: state and domain models.
+- `internal/services`: business utilities (report scheduling, time windows, abnormal-move checks, chart helpers).
+- `internal/interfaces/telegram`: Telegram command and callback parsing.
+- `internal/infra/worldtime`: timezone/IP-based world time helper.
+
+## Requirements
+
+- Binance API key/secret with trading permission.
+- Telegram bot token and target chat ID.
+- Docker + Docker Compose (recommended).
+- Optional:
+  - Redis (for API caching).
+  - SQLite file volume (for incremental trade storage).
+  - Freqtrade REST API with basic auth.
+
+## Quick Start (Docker)
+
+1. Copy config:
 
 ```bash
 cp .env.example .env
 ```
 
-Set required values in `.env`:
+2. Fill required values in `.env`:
 
-- `BINANCE_API_KEY`, `BINANCE_API_SECRET`
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-- `TRACKED_SYMBOLS` (pairs your bot trades, comma-separated)
-- `TRACKED_SYMBOLS=ALL` to auto-track all tradable pairs for your `QUOTE_ASSET` (capped by `MAX_AUTO_TRACKED_SYMBOLS`)
-- `TRACKED_SYMBOLS=FREQTRADE` to auto-track pairs from Freqtrade API (`FREQTRADE_API_URL`, `FREQTRADE_USERNAME`, `FREQTRADE_PASSWORD`)
-- `DAILY_REPORT_ENABLED`, `DAILY_REPORT_TIME_UTC`, `DAILY_REPORT_TIMEZONE`
-- `DAILY_REPORT_MODE` (`full` or `digest`), `DAILY_DIGEST_TRADES`
-- `FEE_MAIN_CURRENCY` (`BNB` or `USDT`) for fee displays
-  - Can also be changed from Telegram via `Currency` button
-- `HEARTBEAT_ENABLED`, `HEARTBEAT_STALE_AFTER`, `HEARTBEAT_CHECK_INTERVAL`, optional `HEARTBEAT_PING_URL`
-- `API_FAILURE_ALERT_ENABLED`, `API_FAILURE_THRESHOLD`, `API_FAILURE_ALERT_COOLDOWN`
-- `API_LATENCY_THRESHOLD`, `API_LATENCY_SPIKE_THRESHOLD`
-- `ABNORMAL_MOVE_ALERT_ENABLED`, `ABNORMAL_MOVE_DROP_1H_PCT`, `ABNORMAL_MOVE_DROP_24H_PCT`, `ABNORMAL_MOVE_ALERT_COOLDOWN`
-- Optional: `REDIS_ENABLED`, `REDIS_ADDR`, `REDIS_TRADE_TTL`, `REDIS_PRICES_TTL`
-- Optional: `SQLITE_ENABLED`, `SQLITE_PATH`, `SQLITE_INITIAL_LOOKBACK_DAYS`, `SQLITE_SYNC_INTERVAL`, `SQLITE_MAX_LOOKBACK_DAYS`
-- `FREQTRADE_API_URL`, `FREQTRADE_USERNAME`, `FREQTRADE_PASSWORD`, `FREQTRADE_TRADES_LIMIT`, `FREQTRADE_MAX_PAGES` (when `TRACKED_SYMBOLS=FREQTRADE`)
+- `BINANCE_API_KEY`
+- `BINANCE_API_SECRET`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
 
-Threshold options:
-
-- BNB mode: set `MIN_BNB_THRESHOLD` and `TARGET_BNB`
-- Quote mode (no manual BNB calculation): set `MIN_BNB_THRESHOLD_USDT` and `TARGET_BNB_USDT`
-- Ratio mode: set `BNB_RATIO_MODE=true`, `BNB_RATIO_MIN`, `BNB_RATIO_TARGET` (example `0.002` = 0.2%)
-- Priority: ratio mode overrides quote mode, quote mode overrides BNB mode.
-- If quote mode is set, bot converts thresholds to BNB using live symbol price each check.
-- `MAX_BUY_QUOTE` and `MIN_BUY_QUOTE` are already quote-asset values (USDT when `QUOTE_ASSET=USDT`).
-
-## Run
+3. Start:
 
 ```bash
 docker compose up -d --build
 ```
 
-State data is persisted in `./data` (mounted to `/app/data` in container).
-
-Logs:
+4. See logs:
 
 ```bash
-docker compose logs -f
+docker compose logs -f trade-ops-sentinel
 ```
 
-Stop:
+5. Stop:
 
 ```bash
 docker compose down
 ```
 
-## Telegram usage
+State files are stored in `./data` and mounted into the container as `/app/data`.
 
-- Start chat with your bot.
-- Send `/start` or `/menu`.
-- Bottom reply keyboard is shown with shortcuts: `Status`, `Daily Report`, `Menu`, `Help`.
-- Use buttons to request fee totals, PnL totals, and charts.
-- Send `/daily` to force-send the full daily report immediately.
-- Send `/help` to see all commands.
+## Local Run (Go)
 
-## Notes
+```bash
+go mod download
+go run ./cmd/trade-ops-sentinel
+```
 
-- Fee totals are calculated from Freqtrade trades when `TRACKED_SYMBOLS=FREQTRADE`, otherwise Binance `myTrades`.
-- PnL and ratio mode use estimated total portfolio value in `QUOTE_ASSET` (conversion by Binance spot prices where available).
-- This places real market orders; test with small limits first.
+## Configuration Guide
+
+### Symbol Tracking Modes
+
+- Explicit symbols: `TRACKED_SYMBOLS=BNBUSDT,BTCUSDT,ETHUSDT`
+- Auto by quote asset: `TRACKED_SYMBOLS=ALL`
+- Freqtrade mode: `TRACKED_SYMBOLS=FREQTRADE`
+
+When using `ALL`, the app fetches tradable symbols by `QUOTE_ASSET` and caps results with `MAX_AUTO_TRACKED_SYMBOLS`.
+
+When using `FREQTRADE`, the app requires:
+
+- `FREQTRADE_API_URL`
+- `FREQTRADE_USERNAME`
+- `FREQTRADE_PASSWORD`
+
+### Threshold Strategy Priority
+
+1. Ratio mode if `BNB_RATIO_MODE=true`
+2. Quote threshold mode if quote thresholds are set (> 0)
+3. Plain BNB threshold mode
+
+### Environment Variables
+
+#### Required
+
+| Variable | Description |
+|---|---|
+| `BINANCE_API_KEY` | Binance API key |
+| `BINANCE_API_SECRET` | Binance API secret |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | Allowed chat ID for bot interactions |
+
+#### Trading and Symbols
+
+| Variable | Default | Description |
+|---|---:|---|
+| `SYMBOL` | `BNBUSDT` | Trading pair used for BNB refill buys |
+| `TRACKED_SYMBOLS` | `BNBUSDT` | CSV list, `ALL`, or `FREQTRADE` |
+| `MAX_AUTO_TRACKED_SYMBOLS` | `40` | Cap when `TRACKED_SYMBOLS=ALL` |
+| `BNB_ASSET` | `BNB` | Fee asset symbol |
+| `QUOTE_ASSET` | `USDT` | Quote currency |
+
+#### Thresholds and Buying
+
+| Variable | Default | Description |
+|---|---:|---|
+| `MIN_BNB_THRESHOLD` | `0` | Minimum BNB (BNB mode) |
+| `TARGET_BNB` | `0` | Target BNB after refill |
+| `MIN_BNB_THRESHOLD_USDT` | `0` | Min fee reserve in quote currency |
+| `TARGET_BNB_USDT` | `0` | Target fee reserve in quote currency |
+| `BNB_RATIO_MODE` | `false` | Enable ratio threshold mode |
+| `BNB_RATIO_MIN` | `0` | Min portfolio ratio in BNB |
+| `BNB_RATIO_TARGET` | `0` | Target portfolio ratio in BNB |
+| `MAX_BUY_QUOTE` | `25` | Max quote spent per buy |
+| `MIN_BUY_QUOTE` | `5` | Min quote spent per buy |
+| `BUY_COOLDOWN` | `15m` | Cooldown between buys |
+| `ACCOUNT_RESERVE_RATIO` | `0.98` | Portion of quote balance allowed for buy |
+
+#### Runtime and API
+
+| Variable | Default | Description |
+|---|---:|---|
+| `CHECK_INTERVAL` | `2m` | Main monitor cycle |
+| `RECV_WINDOW_MS` | `5000` | Binance recvWindow |
+| `SUMMARY_EVERY_CHECKS` | `10` | Status summary cadence |
+| `NOTIFY_ON_EVERY_CHECK` | `false` | Send update each cycle |
+| `BINANCE_BASE_URL` | `https://api.binance.com` | Binance API base URL |
+| `TELEGRAM_BASE_URL` | `https://api.telegram.org` | Telegram API base URL |
+
+#### Reporting
+
+| Variable | Default | Description |
+|---|---:|---|
+| `DAILY_REPORT_ENABLED` | `true` | Enable daily report loop |
+| `DAILY_REPORT_TIME_UTC` | `00:05` | Daily trigger hour/minute |
+| `DAILY_REPORT_TIMEZONE` | `UTC` | IANA timezone or `AUTO`/`AUTO_IP` |
+| `DAILY_REPORT_MODE` | `full` | `full` or `digest` |
+| `DAILY_DIGEST_TRADES` | `3` | Number of last trades in digest |
+| `FEE_MAIN_CURRENCY` | `BNB` | Display unit: `BNB` or `USDT` |
+
+#### Heartbeat and Alerts
+
+| Variable | Default | Description |
+|---|---:|---|
+| `HEARTBEAT_ENABLED` | `true` | Enable stale-check watchdog |
+| `HEARTBEAT_STALE_AFTER` | `10m` | Stale threshold |
+| `HEARTBEAT_CHECK_INTERVAL` | `1m` | Watchdog polling interval |
+| `HEARTBEAT_PING_URL` | empty | External heartbeat ping URL |
+| `API_FAILURE_ALERT_ENABLED` | `true` | Enable API failure tracking |
+| `API_FAILURE_THRESHOLD` | `3` | Consecutive failures before alert |
+| `API_FAILURE_ALERT_COOLDOWN` | `15m` | Alert cooldown per source |
+| `API_LATENCY_THRESHOLD` | `8s` | Slow-call threshold |
+| `API_LATENCY_SPIKE_THRESHOLD` | `3` | Slow-call spike threshold |
+| `ABNORMAL_MOVE_ALERT_ENABLED` | `true` | Enable abnormal-move alerts |
+| `ABNORMAL_MOVE_DROP_1H_PCT` | `3` | 1h drop alert threshold (%) |
+| `ABNORMAL_MOVE_DROP_24H_PCT` | `8` | 24h drop alert threshold (%) |
+| `ABNORMAL_MOVE_ALERT_COOLDOWN` | `2h` | Abnormal-move alert cooldown |
+
+#### Persistence and Cache
+
+| Variable | Default | Description |
+|---|---:|---|
+| `STATE_FILE` | `./data/state.json` | Snapshot/event state file |
+| `MAX_SNAPSHOTS` | `3000` | Max in-memory snapshots persisted |
+| `REDIS_ENABLED` | `false` | Enable Redis cache |
+| `REDIS_ADDR` | `redis:6379` | Redis address |
+| `REDIS_PASSWORD` | empty | Redis password |
+| `REDIS_DB` | `0` | Redis DB index |
+| `REDIS_TRADE_TTL` | `10m` | Trade cache TTL |
+| `REDIS_PRICES_TTL` | `15s` | Prices cache TTL |
+| `REDIS_KEY_PREFIX` | `bnbfm:` | Redis key prefix |
+| `MYTRADES_MAX_CONCURRENCY` | `1` | Max concurrent Binance trades requests |
+| `MYTRADES_MIN_INTERVAL` | `400ms` | Min interval between Binance trades requests |
+| `SQLITE_ENABLED` | `false` | Enable SQLite trade store |
+| `SQLITE_PATH` | `./data/trades.db` | SQLite DB path |
+| `SQLITE_INITIAL_LOOKBACK_DAYS` | `7` | First sync lookback window |
+| `SQLITE_SYNC_INTERVAL` | `5m` | Incremental sync interval |
+| `SQLITE_MAX_LOOKBACK_DAYS` | `30` | Max sync lookback cap |
+
+#### Freqtrade Integration
+
+| Variable | Default | Description |
+|---|---:|---|
+| `FREQTRADE_API_URL` | empty | Freqtrade API URL |
+| `FREQTRADE_USERNAME` | empty | Basic auth username |
+| `FREQTRADE_PASSWORD` | empty | Basic auth password |
+| `FREQTRADE_TRADES_LIMIT` | `500` | Page size for trades endpoint (max 500) |
+| `FREQTRADE_MAX_PAGES` | `20` | Max pages fetched per request |
+
+## Telegram Reference
+
+### Commands
+
+- `/start` or `/menu`: open menu and reply keyboard.
+- `/status`: account snapshot, fees, pnl, system metrics, watchdog.
+- `/daily`: send full daily report immediately.
+- `/help`: show help text.
+
+### Reply Keyboard
+
+- `Status`
+- `Daily Report`
+- `Menu`
+- `Help`
+
+### Inline Menus
+
+- Actions: refill now, force buy, report now.
+- Reports: daily/weekly/monthly reports, fees, pnl, trades, leaders, PnL table.
+- Charts: fee/pnl charts, cumulative views, custom windows, date/range tools.
+- Settings: fee display currency and Freqtrade health.
+
+### Date/Range Input Rules
+
+- Manual format accepted: `YYYY-MM-DD HH:MM`, `YYYY-MM-DD HH`, `YYYY-MM-DD`.
+- Inputs are interpreted in UTC.
+- Type `cancel` or `back` to exit input mode.
+
+## Freqtrade Mode
+
+Set:
+
+```env
+TRACKED_SYMBOLS=FREQTRADE
+FREQTRADE_API_URL=http://freqtrade:8080
+FREQTRADE_USERNAME=...
+FREQTRADE_PASSWORD=...
+```
+
+Behavior:
+
+- Pair list resolves from Freqtrade status/trades endpoints.
+- Fee and PnL analytics use Freqtrade trade history.
+- Telegram `Freqtrade Health` shows endpoint/auth diagnostics.
+
+## Docker Compose Networking Note
+
+`docker-compose.yml` includes external network `ft_userdata_default`. Ensure it exists before startup:
+
+```bash
+docker network create ft_userdata_default || true
+```
+
+If you do not need this shared network, remove it from `docker-compose.yml`.
+
+## Operational Notes
+
+- This project can place real market orders.
+- Start with small `MAX_BUY_QUOTE` and strict `MIN_BUY_QUOTE`.
+- Use API keys with minimum required permissions.
+- Keep `.env` out of version control.
+
+## Troubleshooting
+
+- Bot does not respond in Telegram:
+  - Verify `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+  - Send `/start` to initialize chat with the bot.
+- Frequent API errors:
+  - Check Binance/Freqtrade credentials, network reachability, and rate limits.
+  - Review API alert messages for exact failing source.
+- No charts/history data:
+  - Wait for snapshots/trades to accumulate.
+  - Confirm `TRACKED_SYMBOLS` mode and source connectivity.
+- Compose fails on missing network:
+  - Create `ft_userdata_default` or remove external network binding.
+
+## Development
+
+```bash
+go test ./...
+go vet ./...
+```
+
+Build binary:
+
+```bash
+go build -o trade-ops-sentinel ./cmd/trade-ops-sentinel
+```
+
+## License
+
+No license file is currently included. Add a `LICENSE` file before public open-source distribution.

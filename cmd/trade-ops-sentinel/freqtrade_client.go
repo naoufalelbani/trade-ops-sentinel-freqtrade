@@ -104,7 +104,7 @@ func freqtradeRequestWithRetry(ctx context.Context, client *http.Client, cfg Con
 			body, _ := io.ReadAll(res.Body)
 			_ = res.Body.Close()
 			if res.StatusCode >= 400 {
-				lastErr = fmt.Errorf("http=%d body=%s", res.StatusCode, strings.TrimSpace(string(body)))
+				lastErr = fmt.Errorf("%s", summarizeHTTPStatus(res.StatusCode))
 				if runtimeAlerts != nil {
 					runtimeAlerts.observeAPICall(source, time.Since(started), lastErr)
 				}
@@ -402,9 +402,9 @@ func buildFreqtradeHealthReport(ctx context.Context, cfg Config) string {
 		if reqErr != nil {
 			pingLine = fmt.Sprintf("Ping: request error: %v", reqErr)
 		} else {
-			body, _ := io.ReadAll(io.LimitReader(res.Body, 256))
+			_, _ = io.ReadAll(io.LimitReader(res.Body, 256))
 			_ = res.Body.Close()
-			pingLine = fmt.Sprintf("Ping: http=%d body=%s", res.StatusCode, strings.TrimSpace(string(body)))
+			pingLine = fmt.Sprintf("Ping: %s", summarizeHTTPStatus(res.StatusCode))
 		}
 	}
 
@@ -448,7 +448,14 @@ func freqtradeAuthEndpointCheck(ctx context.Context, client *http.Client, baseUR
 	if err != nil {
 		return fmt.Sprintf("%s: request error: %v", path, err)
 	}
-	body, _ := io.ReadAll(io.LimitReader(res.Body, 256))
+	_, _ = io.ReadAll(io.LimitReader(res.Body, 256))
 	_ = res.Body.Close()
-	return fmt.Sprintf("%s: http=%d body=%s", path, res.StatusCode, strings.TrimSpace(string(body)))
+	return fmt.Sprintf("%s: %s", path, summarizeHTTPStatus(res.StatusCode))
+}
+
+func summarizeHTTPStatus(code int) string {
+	if code >= 200 && code < 300 {
+		return fmt.Sprintf("http=%d ok", code)
+	}
+	return fmt.Sprintf("http=%d error", code)
 }

@@ -1,4 +1,4 @@
-module bnb-fees-monitor
+module trade-ops-sentinel
 
 go 1.22
 
