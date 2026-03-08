@@ -64,8 +64,8 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 	}
 	width, height := chartDimensions(size)
 
-	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
-	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
+	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
 	cfg := map[string]any{
 		"type": chartType,
 		"data": map[string]any{
@@ -75,7 +75,7 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 		"options": map[string]any{
 			"layout": map[string]any{
 				"padding": map[string]any{
-					"left": 8, "right": 12, "top": 8, "bottom": 4,
+					"left": 8, "right": 20, "top": 8, "bottom": 4,
 				},
 			},
 			"plugins": map[string]any{
@@ -92,6 +92,7 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 			},
 			"scales": map[string]any{
 				"x": map[string]any{
+					"offset": true,
 					"ticks": map[string]any{
 						"autoSkip":      true,
 						"maxTicksLimit": 8,
@@ -105,6 +106,35 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 					"ticks": map[string]any{"maxTicksLimit": 6, "color": tickColor},
 					"grid":  yGrid,
 				},
+				// Legacy Chart.js v2 fallback used by some QuickChart render paths.
+				"xAxes": []map[string]any{{
+					"offset": true,
+					"ticks": map[string]any{
+						"autoSkip":      true,
+						"maxTicksLimit": 8,
+						"maxRotation":   0,
+						"minRotation":   0,
+						"fontColor":     tickColor,
+					},
+					"gridLines": map[string]any{
+						"display":    showGrid,
+						"color":      gridColor,
+						"lineWidth":  1.1,
+						"drawBorder": false,
+					},
+				}},
+				"yAxes": []map[string]any{{
+					"ticks": map[string]any{
+						"maxTicksLimit": 6,
+						"fontColor":     tickColor,
+					},
+					"gridLines": map[string]any{
+						"display":    showGrid,
+						"color":      gridColor,
+						"lineWidth":  1.1,
+						"drawBorder": false,
+					},
+				}},
 			},
 			// Legacy Chart.js title fallback for environments that ignore plugins.title.
 			"title":  map[string]any{"display": true, "text": title, "fontColor": titleColor},
@@ -146,7 +176,7 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 	titleColor := "#ffffff"
 	legendColor := "#e5e7eb"
 	tickColor := "#d1d5db"
-	gridColor := "rgba(255,255,255,0.10)"
+	gridColor := "rgba(255,255,255,0.26)"
 	lineColor := "#d9d9d9"
 	fillColor := "rgba(217,217,217,0.18)"
 	bgColor := "%23000000"
@@ -160,8 +190,8 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 		bgColor = "white"
 	}
 	width, height := chartDimensions(size)
-	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
-	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
+	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
 	cfg := map[string]any{
 		"type": "line",
 		"data": map[string]any{
@@ -174,14 +204,44 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 			}},
 		},
 		"options": map[string]any{
+			"layout": map[string]any{
+				"padding": map[string]any{
+					"left": 10, "right": 44, "top": 8, "bottom": 6,
+				},
+			},
 			"plugins": map[string]any{
 				"title":      map[string]any{"display": true, "text": title, "color": titleColor, "font": map[string]any{"size": 20}},
 				"legend":     map[string]any{"display": true, "labels": map[string]any{"color": legendColor}},
 				"datalabels": map[string]any{"display": showLabels, "align": labelAlign, "anchor": "end", "offset": 4, "font": map[string]any{"size": 10, "weight": "bold"}, "color": labelColors},
 			},
 			"scales": map[string]any{
-				"x": map[string]any{"ticks": map[string]any{"color": tickColor, "maxTicksLimit": 8}, "grid": xGrid, "title": map[string]any{"display": false}},
+				"x": map[string]any{"offset": true, "ticks": map[string]any{"color": tickColor, "maxTicksLimit": 8}, "grid": xGrid, "title": map[string]any{"display": false}},
 				"y": map[string]any{"ticks": map[string]any{"color": tickColor}, "grid": yGrid, "title": map[string]any{"display": true, "text": unit, "color": tickColor}},
+				// Legacy Chart.js v2 fallback used by some QuickChart render paths.
+				"xAxes": []map[string]any{{
+					"offset": true,
+					"ticks": map[string]any{
+						"maxTicksLimit": 8,
+						"fontColor":     tickColor,
+					},
+					"gridLines": map[string]any{
+						"display":    showGrid,
+						"color":      gridColor,
+						"lineWidth":  1.1,
+						"drawBorder": false,
+					},
+				}},
+				"yAxes": []map[string]any{{
+					"ticks": map[string]any{
+						"fontColor": tickColor,
+					},
+					"gridLines": map[string]any{
+						"display":    showGrid,
+						"color":      gridColor,
+						"lineWidth":  1.1,
+						"drawBorder": false,
+					},
+				}},
 			},
 			"title":  map[string]any{"display": true, "text": title, "fontColor": titleColor},
 			"legend": map[string]any{"display": true, "labels": map[string]any{"fontColor": legendColor}},

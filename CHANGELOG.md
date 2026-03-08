@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.2.5] - 2026-03-08
+
+### Fixed
+
+- Telegram chart image clipping on the right edge by adding chart layout padding and x-axis offset.
+- Dark-mode chart grid visibility by strengthening grid contrast and adding legacy Chart.js v2 grid fallback config (`xAxes/yAxes.gridLines`) for QuickChart compatibility.
+
 ## [v0.2.4] - 2026-03-08
 
 ### Added
