@@ -34,6 +34,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract release version from changelog
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -m1 -E '^## \[v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed -E 's/^## \[([^]]+)\].*/\1/')"
+          if [[ -z "${version}" ]]; then
+            echo "Unable to find version in CHANGELOG.md"
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -42,6 +54,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.release.outputs.version }},enable={{is_default_branch}}
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
@@ -55,7 +68,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
+            APP_VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.release.outputs.version }}
             APP_COMMIT=${{ github.sha }}
             APP_BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           cache-from: type=gha
