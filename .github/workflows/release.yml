@@ -1,0 +1,49 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build release notes from changelog
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          out="release-notes.md"
+
+          # Extract section for matching tag from CHANGELOG.md.
+          awk -v tag="$tag" '
+            $0 ~ "^## \\[" tag "\\]" { in_section=1; next }
+            in_section && $0 ~ "^## \\[" { exit }
+            in_section { print }
+          ' CHANGELOG.md | sed '/^[[:space:]]*$/N;/^\n$/D' > "$out"
+
+          if [[ ! -s "$out" ]]; then
+            {
+              echo "Release ${tag}"
+              echo
+              echo "No matching changelog section found for ${tag}."
+            } > "$out"
+          fi
+
+          echo "body_path=${out}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.notes.outputs.body_path }}
+          generate_release_notes: true
