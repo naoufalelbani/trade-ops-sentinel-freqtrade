@@ -60,7 +60,7 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 		titleColor = "#ffffff"
 		legendColor = "#e5e7eb"
 		tickColor = "#d1d5db"
-		gridColor = "rgba(255,255,255,0.10)"
+		gridColor = "rgba(255,255,255,0.24)"
 	}
 	width, height := chartDimensions(size)
 
