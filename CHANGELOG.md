@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [v0.2.4] - Unreleased
 
 ### Added
 
@@ -11,6 +11,15 @@ All notable changes to this project are documented in this file.
 - Added `Chart Grid` setting (`ON/OFF`) to enable or disable chart grid lines, persisted in `state.json`.
 - Docker build now supports multi-arch targets (`linux/amd64`, `linux/arm64`) for ARM-compatible images.
 - GitHub Actions Docker workflow now builds/pushes multi-arch images (`amd64` + `arm64`) to GHCR and tags `main` as `latest`.
+- Docker Compose now supports cloud-image default run plus local build override (`docker-compose.local.yml`).
+- Added extra chart settings: `Chart Size` (`compact/standard/wide`) and `Chart Labels` (`on/off`), persisted in `state.json`.
+
+### Changed
+
+- Improved dark-mode chart rendering:
+  - Stronger grid contrast and visible grid toggles.
+  - Chart titles now include chart type and selected window (e.g. `Cumulative Profit (7d)`).
+- GHCR publish workflow disables provenance/SBOM attestations to avoid `unknown/unknown` platform entries in package view.
 
 ## [0.2.1] - 2026-03-08
 
