@@ -1,6 +1,6 @@
 services:
   trade-ops-sentinel:
-    image: ${TRADE_OPS_IMAGE:-ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.1}
+    image: ${TRADE_OPS_IMAGE:-ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.2}
     pull_policy: always
     container_name: trade-ops-sentinel
     restart: unless-stopped

@@ -461,6 +461,12 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		safeSendPhotoToChat(notifier, chatID, chartURL, "Fees chart")
 	case "chart_cum_fees_day", "chart_cum_fees_week", "chart_cum_fees_month":
 		dur := selectDuration(data)
+		window := "24h"
+		if data == "chart_cum_fees_week" {
+			window = "7d"
+		} else if data == "chart_cum_fees_month" {
+			window = "30d"
+		}
 		labels, values, unit, err := cumulativeFeesSeriesWindow(ctx, cfg, state, binance, dur)
 		if err != nil {
 			safeSendToChat(notifier, chatID, fmt.Sprintf("cumulative fees chart error: %v", err), defaultKeyboard())
@@ -470,8 +476,9 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, chatID, "No cumulative fee data yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildCumulativeProfitChartURL("Cumulative Fees", labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-		safeSendPhotoToChat(notifier, chatID, chartURL, "Cumulative Fees")
+		title := fmt.Sprintf("Cumulative Fees (%s)", window)
+		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+		safeSendPhotoToChat(notifier, chatID, chartURL, title)
 	case "chart_pnl":
 		labels, values := state.pnlSeriesLastNDays(30)
 		if len(labels) == 0 {
@@ -482,13 +489,24 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		safeSendPhotoToChat(notifier, chatID, chartURL, "PnL chart")
 	case "chart_cum_profit_day", "chart_cum_profit_48h", "chart_cum_profit_72h", "chart_cum_profit_week", "chart_cum_profit_month":
 		dur := selectDuration(data)
+		window := "24h"
+		if data == "chart_cum_profit_48h" {
+			window = "48h"
+		} else if data == "chart_cum_profit_72h" {
+			window = "72h"
+		} else if data == "chart_cum_profit_week" {
+			window = "7d"
+		} else if data == "chart_cum_profit_month" {
+			window = "30d"
+		}
 		labels, values, unit := cumulativeProfitSeriesWindow(ctx, cfg, state, binance, dur)
 		if len(labels) == 0 {
 			safeSendToChat(notifier, chatID, "No cumulative profit data yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildCumulativeProfitChartURL("Cumulative Profit", labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-		safeSendPhotoToChat(notifier, chatID, chartURL, "Cumulative Profit")
+		title := fmt.Sprintf("Cumulative Profit (%s)", window)
+		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+		safeSendPhotoToChat(notifier, chatID, chartURL, title)
 	case "chart_cum_profit_custom":
 		setAwaitingCustomCumProfitWindow(chatID, true)
 		safeSendToChat(notifier, chatID, "Choose cumulative profit window or type it (example: `36h`, `3d`).", customCumProfitWindowKeyboard())

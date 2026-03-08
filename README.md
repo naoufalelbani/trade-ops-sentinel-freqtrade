@@ -94,6 +94,28 @@ docker compose down
 
 State files are stored in `./data` and mounted into the container as `/app/data`.
 
+## Multi-Arch Build (AMD64 + ARM64)
+
+The Dockerfile supports cross-compile targets via BuildKit (`TARGETOS`/`TARGETARCH`), so you can publish a single multi-arch image for both Intel/AMD and ARM machines.
+
+Build and push multi-arch image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.2 \
+  --push .
+```
+
+Build a local ARM64 image only:
+
+```bash
+docker buildx build \
+  --platform linux/arm64 \
+  -t trade-ops-sentinel:arm64-local \
+  --load .
+```
+
 ## Local Run (Go)
 
 ```bash

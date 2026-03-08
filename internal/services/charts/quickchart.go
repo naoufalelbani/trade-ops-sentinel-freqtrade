@@ -60,12 +60,12 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 		titleColor = "#ffffff"
 		legendColor = "#e5e7eb"
 		tickColor = "#d1d5db"
-		gridColor = "rgba(255,255,255,0.24)"
+		gridColor = "rgba(255,255,255,0.38)"
 	}
 	width, height := chartDimensions(size)
 
-	xGrid := map[string]any{"display": showGrid, "color": gridColor}
-	yGrid := map[string]any{"display": showGrid, "color": gridColor}
+	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
 	cfg := map[string]any{
 		"type": chartType,
 		"data": map[string]any{
@@ -106,6 +106,9 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 					"grid":  yGrid,
 				},
 			},
+			// Legacy Chart.js title fallback for environments that ignore plugins.title.
+			"title":  map[string]any{"display": true, "text": title, "fontColor": titleColor},
+			"legend": map[string]any{"display": true, "position": "top", "labels": map[string]any{"fontColor": legendColor}},
 		},
 	}
 	b, _ := json.Marshal(cfg)
@@ -157,8 +160,8 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 		bgColor = "white"
 	}
 	width, height := chartDimensions(size)
-	xGrid := map[string]any{"display": showGrid, "color": gridColor}
-	yGrid := map[string]any{"display": showGrid, "color": gridColor}
+	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1}
 	cfg := map[string]any{
 		"type": "line",
 		"data": map[string]any{
@@ -180,6 +183,8 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 				"x": map[string]any{"ticks": map[string]any{"color": tickColor, "maxTicksLimit": 8}, "grid": xGrid, "title": map[string]any{"display": false}},
 				"y": map[string]any{"ticks": map[string]any{"color": tickColor}, "grid": yGrid, "title": map[string]any{"display": true, "text": unit, "color": tickColor}},
 			},
+			"title":  map[string]any{"display": true, "text": title, "fontColor": titleColor},
+			"legend": map[string]any{"display": true, "labels": map[string]any{"fontColor": legendColor}},
 		},
 	}
 	b, _ := json.Marshal(cfg)

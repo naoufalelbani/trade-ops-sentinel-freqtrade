@@ -9,6 +9,8 @@ All notable changes to this project are documented in this file.
 - Release metadata is now shown in `/status` and `/version`, including a changelog snippet for the current tag.
 - Settings changes are audit-logged to `data/settings_audit.log` with timestamp, chat/user, setting name, and old/new values.
 - Added `Chart Grid` setting (`ON/OFF`) to enable or disable chart grid lines, persisted in `state.json`.
+- Docker build now supports multi-arch targets (`linux/amd64`, `linux/arm64`) for ARM-compatible images.
+- GitHub Actions Docker workflow now builds/pushes multi-arch images (`amd64` + `arm64`) to GHCR and tags `main` as `latest`.
 
 ## [0.2.1] - 2026-03-08
 
