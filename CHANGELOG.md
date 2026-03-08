@@ -2,6 +2,63 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.2.10] - 2026-03-08
+
+### Added
+
+- Compound forecast output now explicitly includes:
+  - `amount_to_trade = balance / max_open_trades`
+  - `predicted_earning_pct`
+  - `possible_trade_earning = amount_to_trade * predicted_earning_pct`
+- Compound chart captions now show per-trade amount and per-trade possible earning in quote currency.
+
+### Changed
+
+- Extended custom prediction horizon limit from `90` to `365` days for:
+  - daily forecast,
+  - cumulative forecast,
+  - compound forecast.
+- Updated Telegram validation prompts and help text to reflect `3..365` day custom horizons.
+
+## [v0.2.9] - 2026-03-08
+
+### Added
+
+- Added compound earnings forecast in Freqtrade mode using:
+  - `/api/v1/show_config` (max open trades, tradable balance settings),
+  - `/api/v1/count` (open trades),
+  - `/api/v1/balance` (quote wallet balance).
+- Added Telegram chart actions for compound prediction:
+  - `Compound 7d`, `Compound 30d`, and `Compound Custom` (`3..90` days).
+- Added refresh support for custom compound forecast callbacks.
+- Added compound forecast lines to the PnL 7d report table (expected and p20/p80 range for 7d and 30d), including model/input notes.
+
+### Changed
+
+- Help text now documents compound forecast behavior and Freqtrade-only scope.
+- Compound model uses log-return compounding with winsorized returns and a capacity cap based on `max_open_trades` and observed average trade hold time.
+
+## [v0.2.8] - 2026-03-08
+
+### Added
+
+- Added advanced PnL prediction engine using recency-weighted linear trend plus weekly seasonality.
+- Added new forecast chart type (history + dashed forecast) for prediction outputs.
+- Added prediction controls in Telegram Charts menu:
+  - `Predict 7d`, `Predict 30d`, `Predict Custom`
+  - `Predict Cum 7d`, `Predict Cum 30d`, `Predict Cum Custom`
+- Added custom prediction input flow for typed horizon days (`3..90`) with cancel/back handling.
+- Added cumulative forecast values to the PnL 7d table output:
+  - `forecast cumulative 7d`
+  - `forecast cumulative 30d`
+  - forecast model note
+
+### Changed
+
+- Prediction charts now support both daily forecast and cumulative forecast modes.
+- Prediction chart rendering now skips long leading flat-zero history segments for cleaner readability.
+- Telegram prediction charts support refresh callbacks, including custom horizons.
+
 ## [v0.2.7] - 2026-03-08
 
 ### Added

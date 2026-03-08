@@ -46,6 +46,54 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			return
 		}
 		rawText := strings.TrimSpace(upd.Message.Text)
+		if !strings.HasPrefix(rawText, "/") && isAwaitingCompoundPredictionDays(upd.Message.Chat.ID) {
+			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
+				setAwaitingCompoundPredictionDays(upd.Message.Chat.ID, false)
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Compound prediction input canceled.", chartsKeyboard())
+				return
+			}
+			days, ok := parsePredictionDaysInput(rawText)
+			if !ok {
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+				return
+			}
+			setAwaitingCompoundPredictionDays(upd.Message.Chat.ID, false)
+			chartTheme := state.getChartTheme("dark")
+			chartSize := state.getChartSize("standard")
+			chartGrid := state.getChartGridEnabled(true)
+			refreshAction := "chart_compound_custom_" + strconv.Itoa(days) + "d"
+			if err := sendCompoundPredictionChart(ctx, cfg, state, binance, notifier, upd.Message.Chat.ID, days, refreshAction, chartTheme, chartSize, chartGrid); err != nil {
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("compound chart error: %v", err), chartsKeyboard())
+			}
+			return
+		}
+		if !strings.HasPrefix(rawText, "/") && isAwaitingPredictionDays(upd.Message.Chat.ID) {
+			mode := predictionModeForChat(upd.Message.Chat.ID)
+			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
+				setAwaitingPredictionDays(upd.Message.Chat.ID, "", false)
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Prediction input canceled.", chartsKeyboard())
+				return
+			}
+			days, ok := parsePredictionDaysInput(rawText)
+			if !ok {
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+				return
+			}
+			setAwaitingPredictionDays(upd.Message.Chat.ID, "", false)
+			chartTheme := state.getChartTheme("dark")
+			chartSize := state.getChartSize("standard")
+			chartGrid := state.getChartGridEnabled(true)
+			refreshAction := "chart_predict_custom_" + strconv.Itoa(days) + "d"
+			cumulative := false
+			if mode == "cum" {
+				refreshAction = "chart_predict_cum_custom_" + strconv.Itoa(days) + "d"
+				cumulative = true
+			}
+			if err := sendPredictionChart(ctx, cfg, state, binance, notifier, upd.Message.Chat.ID, days, cumulative, refreshAction, chartTheme, chartSize, chartGrid); err != nil {
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("prediction chart error: %v", err), chartsKeyboard())
+			}
+			return
+		}
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCustomCumProfitDateFrom(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				clearCustomCumProfitDateRangeState(upd.Message.Chat.ID)
@@ -183,6 +231,35 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 	chartSize := state.getChartSize("standard")
 	chartLabels := state.getChartLabelsEnabled(true)
 	chartGrid := state.getChartGridEnabled(true)
+	if strings.HasPrefix(data, "chart_predict_custom_") || strings.HasPrefix(data, "chart_predict_cum_custom_") {
+		rawDays := strings.TrimSuffix(strings.TrimPrefix(data, "chart_predict_custom_"), "d")
+		cumulative := false
+		if strings.HasPrefix(data, "chart_predict_cum_custom_") {
+			rawDays = strings.TrimSuffix(strings.TrimPrefix(data, "chart_predict_cum_custom_"), "d")
+			cumulative = true
+		}
+		horizon, err := strconv.Atoi(rawDays)
+		if err != nil || horizon < minPredictionDays || horizon > maxPredictionDays {
+			safeSendToChat(notifier, chatID, "Invalid prediction horizon.", predictionDaysKeyboard())
+			return
+		}
+		if err := sendPredictionChart(ctx, cfg, state, binance, notifier, chatID, horizon, cumulative, data, chartTheme, chartSize, chartGrid); err != nil {
+			safeSendToChat(notifier, chatID, fmt.Sprintf("prediction chart error: %v", err), chartsKeyboard())
+		}
+		return
+	}
+	if strings.HasPrefix(data, "chart_compound_custom_") {
+		rawDays := strings.TrimSuffix(strings.TrimPrefix(data, "chart_compound_custom_"), "d")
+		horizon, err := strconv.Atoi(rawDays)
+		if err != nil || horizon < minPredictionDays || horizon > maxPredictionDays {
+			safeSendToChat(notifier, chatID, "Invalid prediction horizon.", predictionDaysKeyboard())
+			return
+		}
+		if err := sendCompoundPredictionChart(ctx, cfg, state, binance, notifier, chatID, horizon, data, chartTheme, chartSize, chartGrid); err != nil {
+			safeSendToChat(notifier, chatID, fmt.Sprintf("compound chart error: %v", err), chartsKeyboard())
+		}
+		return
+	}
 
 	switch data {
 	case "menu", "menu_main":
@@ -480,6 +557,44 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		}
 		chartURL := buildLineChartURL("BNB Fees (Last 30 Days)", labels, values, "BNB", chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, "Fees chart")
+	case "chart_predict_week", "chart_predict_14d", "chart_predict_month", "chart_predict_60d", "chart_predict_cum_week", "chart_predict_cum_14d", "chart_predict_cum_month", "chart_predict_cum_60d":
+		horizon := 7
+		if data == "chart_predict_14d" || data == "chart_predict_cum_14d" {
+			horizon = 14
+		} else if data == "chart_predict_month" || data == "chart_predict_cum_month" {
+			horizon = 30
+		} else if data == "chart_predict_60d" || data == "chart_predict_cum_60d" {
+			horizon = 60
+		}
+		cumulative := strings.HasPrefix(data, "chart_predict_cum_")
+		if err := sendPredictionChart(ctx, cfg, state, binance, notifier, chatID, horizon, cumulative, data, chartTheme, chartSize, chartGrid); err != nil {
+			safeSendToChat(notifier, chatID, fmt.Sprintf("prediction chart error: %v", err), chartsKeyboard())
+		}
+	case "chart_predict_custom":
+		setAwaitingPredictionDays(chatID, "daily", true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Type forecast horizon in days (`%d`..`%d`). Example: `21`.\nType `cancel` to stop.", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+	case "chart_predict_cum_custom":
+		setAwaitingPredictionDays(chatID, "cum", true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Type cumulative forecast horizon in days (`%d`..`%d`). Example: `21`.\nType `cancel` to stop.", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+	case "chart_compound_week", "chart_compound_month":
+		if !cfg.FreqtradeHistoryMode {
+			safeSendToChat(notifier, chatID, "Compound forecast is available in Freqtrade mode only (`TRACKED_SYMBOLS=FREQTRADE`).", chartsKeyboard())
+			return
+		}
+		horizon := 7
+		if data == "chart_compound_month" {
+			horizon = 30
+		}
+		if err := sendCompoundPredictionChart(ctx, cfg, state, binance, notifier, chatID, horizon, data, chartTheme, chartSize, chartGrid); err != nil {
+			safeSendToChat(notifier, chatID, fmt.Sprintf("compound chart error: %v", err), chartsKeyboard())
+		}
+	case "chart_compound_custom":
+		if !cfg.FreqtradeHistoryMode {
+			safeSendToChat(notifier, chatID, "Compound forecast is available in Freqtrade mode only (`TRACKED_SYMBOLS=FREQTRADE`).", chartsKeyboard())
+			return
+		}
+		setAwaitingCompoundPredictionDays(chatID, true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Type compound forecast horizon in days (`%d`..`%d`). Example: `21`.\nType `cancel` to stop.", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
 	case "chart_cum_fees_day", "chart_cum_fees_week", "chart_cum_fees_month":
 		dur := selectDuration(data)
 		window := "24h"
@@ -835,4 +950,29 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 
 func normalizeCommand(raw string) string {
 	return telegramiface.NormalizeCommand(raw)
+}
+
+func sendPredictionChart(ctx context.Context, cfg Config, state *MonitorState, binance *BinanceClient, notifier *TelegramNotifier, chatID int64, horizonDays int, cumulative bool, refreshAction, chartTheme, chartSize string, chartGrid bool) error {
+	var (
+		labels   []string
+		history  []float64
+		forecast []float64
+		unit     string
+	)
+	if cumulative {
+		labels, history, forecast, unit = predictPnLCumulativeSeries(ctx, cfg, state, binance, horizonDays)
+	} else {
+		labels, history, forecast, unit = predictPnLSeries(ctx, cfg, state, binance, horizonDays)
+	}
+	if len(labels) == 0 {
+		safeSendToChat(notifier, chatID, "Not enough daily data to build prediction yet (need at least ~14 daily points).", chartsKeyboard())
+		return nil
+	}
+	title := fmt.Sprintf("PnL Forecast (next %dd)", horizonDays)
+	if cumulative {
+		title = fmt.Sprintf("Cumulative PnL Forecast (next %dd)", horizonDays)
+	}
+	chartURL := buildForecastChartURL(title, labels, history, forecast, unit, chartTheme, chartSize, chartGrid)
+	safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(refreshAction))
+	return nil
 }

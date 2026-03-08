@@ -17,6 +17,10 @@ func buildCumulativeProfitChartURL(title string, labels []string, values []float
 	return charts.BuildCumulativeProfitChartURL(title, labels, values, unit, theme, size, showLabels, showGrid)
 }
 
+func buildForecastChartURL(title string, labels []string, history, forecast []float64, unit, theme, size string, showGrid bool) string {
+	return charts.BuildForecastChartURL(title, labels, history, forecast, unit, theme, size, showGrid)
+}
+
 func cumulativeProfitSeriesWindow(ctx context.Context, cfg Config, state *MonitorState, binance *BinanceClient, d time.Duration) ([]string, []float64, string) {
 	return cumulativeProfitSeriesWindowMode(ctx, cfg, state, binance, d, "auto")
 }

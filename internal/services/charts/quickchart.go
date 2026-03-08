@@ -251,3 +251,96 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 	q := url.QueryEscape(string(b))
 	return fmt.Sprintf("https://quickchart.io/chart?backgroundColor=%s&width=%d&height=%d&c=%s", bgColor, width, height, q)
 }
+
+func BuildForecastChartURL(title string, labels []string, history, forecast []float64, unit, theme, size string, showGrid bool) string {
+	if len(labels) == 0 || len(history) == 0 || len(forecast) == 0 {
+		return ""
+	}
+	dark := strings.EqualFold(strings.TrimSpace(theme), "dark")
+	titleColor := "#ffffff"
+	legendColor := "#e5e7eb"
+	tickColor := "#d1d5db"
+	gridColor := "rgba(255,255,255,0.26)"
+	bgColor := "%23000000"
+	historyColor := "#38bdf8"
+	forecastColor := "#f59e0b"
+	if !dark {
+		titleColor = "#111827"
+		legendColor = "#111827"
+		tickColor = "#374151"
+		gridColor = "rgba(0,0,0,0.06)"
+		bgColor = "white"
+		historyColor = "#0284c7"
+		forecastColor = "#d97706"
+	}
+	width, height := chartDimensions(size)
+	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
+	cfg := map[string]any{
+		"type": "line",
+		"data": map[string]any{
+			"labels": labels,
+			"datasets": []map[string]any{
+				{
+					"label":           "History",
+					"data":            nullableSeries(history),
+					"borderColor":     historyColor,
+					"backgroundColor": "rgba(56,189,248,0.16)",
+					"borderWidth":     2,
+					"pointRadius":     2,
+					"fill":            false,
+					"tension":         0.18,
+				},
+				{
+					"label":           "Forecast",
+					"data":            nullableSeries(forecast),
+					"borderColor":     forecastColor,
+					"backgroundColor": "rgba(245,158,11,0.16)",
+					"borderWidth":     2,
+					"pointRadius":     2,
+					"fill":            false,
+					"tension":         0.18,
+					"borderDash":      []int{8, 6},
+				},
+			},
+		},
+		"options": map[string]any{
+			"layout": map[string]any{
+				"padding": map[string]any{"left": 8, "right": 20, "top": 8, "bottom": 4},
+			},
+			"plugins": map[string]any{
+				"title":  map[string]any{"display": true, "text": title, "color": titleColor},
+				"legend": map[string]any{"display": true, "position": "top", "labels": map[string]any{"color": legendColor}},
+			},
+			"scales": map[string]any{
+				"x": map[string]any{
+					"offset": true,
+					"ticks":  map[string]any{"color": tickColor, "maxTicksLimit": 10, "maxRotation": 0},
+					"grid":   xGrid,
+				},
+				"y": map[string]any{
+					"ticks": map[string]any{"color": tickColor},
+					"grid":  yGrid,
+					"title": map[string]any{"display": true, "text": unit, "color": tickColor},
+				},
+			},
+			"title":  map[string]any{"display": true, "text": title, "fontColor": titleColor},
+			"legend": map[string]any{"display": true, "position": "top", "labels": map[string]any{"fontColor": legendColor}},
+		},
+	}
+	b, _ := json.Marshal(cfg)
+	q := url.QueryEscape(string(b))
+	return fmt.Sprintf("https://quickchart.io/chart?backgroundColor=%s&width=%d&height=%d&c=%s", bgColor, width, height, q)
+}
+
+func nullableSeries(values []float64) []any {
+	out := make([]any, 0, len(values))
+	for _, v := range values {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			out = append(out, nil)
+			continue
+		}
+		out = append(out, v)
+	}
+	return out
+}

@@ -186,6 +186,20 @@ var customCumProfitInput = struct {
 	awaiting: map[int64]bool{},
 }
 
+var customPredictionInput = struct {
+	mu    sync.Mutex
+	modes map[int64]string
+}{
+	modes: map[int64]string{},
+}
+
+var customCompoundPredictionInput = struct {
+	mu       sync.Mutex
+	awaiting map[int64]bool
+}{
+	awaiting: map[int64]bool{},
+}
+
 var customCumProfitRange = struct {
 	mu   sync.Mutex
 	from map[int64]string

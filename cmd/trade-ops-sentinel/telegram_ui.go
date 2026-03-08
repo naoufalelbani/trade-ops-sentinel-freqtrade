@@ -45,6 +45,11 @@ func chartsKeyboard() *inlineKeyboardMarkup {
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{
 			{{Text: "Fees Chart", CallbackData: "chart_fees"}, {Text: "PnL Chart", CallbackData: "chart_pnl"}},
+			{{Text: "Predict 7d", CallbackData: "chart_predict_week"}, {Text: "Predict 30d", CallbackData: "chart_predict_month"}},
+			{{Text: "Predict Cum 7d", CallbackData: "chart_predict_cum_week"}, {Text: "Predict Cum 30d", CallbackData: "chart_predict_cum_month"}},
+			{{Text: "Predict Custom", CallbackData: "chart_predict_custom"}, {Text: "Predict Cum Custom", CallbackData: "chart_predict_cum_custom"}},
+			{{Text: "Compound 7d", CallbackData: "chart_compound_week"}, {Text: "Compound 30d", CallbackData: "chart_compound_month"}},
+			{{Text: "Compound Custom", CallbackData: "chart_compound_custom"}},
 			{{Text: "Cum Fees 24h", CallbackData: "chart_cum_fees_day"}, {Text: "Cum Fees 7d", CallbackData: "chart_cum_fees_week"}, {Text: "Cum Fees 30d", CallbackData: "chart_cum_fees_month"}},
 			{{Text: "Cum Profit 24h", CallbackData: "chart_cum_profit_day"}, {Text: "Cum Profit 48h", CallbackData: "chart_cum_profit_48h"}, {Text: "Cum Profit 72h", CallbackData: "chart_cum_profit_72h"}},
 			{{Text: "Cum Profit 7d", CallbackData: "chart_cum_profit_week"}, {Text: "Cum Profit 30d", CallbackData: "chart_cum_profit_month"}},
@@ -53,6 +58,20 @@ func chartsKeyboard() *inlineKeyboardMarkup {
 			{{Text: "Range Date&Hour", CallbackData: "chart_cum_profit_date_range"}, {Text: "Calendar Range", CallbackData: "chart_cum_profit_calendar_range"}},
 			{{Text: "Range History", CallbackData: "chart_cum_profit_range_history"}},
 			{{Text: "Back", CallbackData: "menu_main"}},
+		},
+	}
+}
+
+func predictionDaysKeyboard() *inlineKeyboardMarkup {
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "7 days", CallbackData: "chart_predict_week"}, {Text: "14 days", CallbackData: "chart_predict_14d"}, {Text: "30 days", CallbackData: "chart_predict_month"}},
+			{{Text: "60 days", CallbackData: "chart_predict_60d"}, {Text: "Custom Input", CallbackData: "chart_predict_custom"}},
+			{{Text: "Cum 7 days", CallbackData: "chart_predict_cum_week"}, {Text: "Cum 30 days", CallbackData: "chart_predict_cum_month"}},
+			{{Text: "Cum 60 days", CallbackData: "chart_predict_cum_60d"}, {Text: "Cum Custom", CallbackData: "chart_predict_cum_custom"}},
+			{{Text: "Compound 7 days", CallbackData: "chart_compound_week"}, {Text: "Compound 30 days", CallbackData: "chart_compound_month"}},
+			{{Text: "Compound Custom", CallbackData: "chart_compound_custom"}},
+			{{Text: "Back", CallbackData: "menu_charts"}},
 		},
 	}
 }
@@ -414,9 +433,12 @@ func helpText() string {
 		"Actions: Refill Now, Force Buy BNB, Daily Report Now",
 		"Reports: day/week/month for Report, Fees, PnL, Trades, Leaders, plus PnL 7d table",
 		"Charts: fees, pnl, cumulative fees/profit, custom windows, range tools",
+		"Prediction charts: daily/cumulative and compound forecast, next 7d/30d or custom days (3..365)",
 		"Settings: currency, chart theme/size/labels/grid, pnl emojis, alert toggles, Freqtrade Health",
 		"",
 		"Chart options:",
+		"Prediction: daily/cumulative next 7d / 30d or custom horizon (3..365 days)",
+		"Compound forecast (Freqtrade): uses max_open_trades + balance + trade-return model",
 		"Cum Profit presets: 24h, 48h, 72h, 7d, 30d",
 		"Cum Profit Custom: choose preset buttons or type window (examples: 36h, 3d, 10d)",
 		"Custom History: re-use previous custom windows",

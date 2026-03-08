@@ -61,9 +61,74 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 		pctCell := fmt.Sprintf("%s%%", formatSignedNoPlus(r.Pct, 2))
 		b.WriteString(fmt.Sprintf("%-16s %-18s %-9s\n", dayLabel, quoteCell, pctCell))
 	}
+	predPrinted := false
+	if pred7, ok := forecastCumulativePnL(ctx, cfg, state, 7); ok {
+		p7, u7, ok7 := quoteToDisplay(pred7, cfg, displayCurrency, spot)
+		if !ok7 {
+			p7 = pred7
+			u7 = strings.ToUpper(cfg.QuoteAsset)
+		}
+		b.WriteString(fmt.Sprintf("forecast cumulative 7d: %s %s\n", formatSignedNoPlus(p7, 3), u7))
+		predPrinted = true
+	}
+	if pred30, ok := forecastCumulativePnL(ctx, cfg, state, 30); ok {
+		p30, u30, ok30 := quoteToDisplay(pred30, cfg, displayCurrency, spot)
+		if !ok30 {
+			p30 = pred30
+			u30 = strings.ToUpper(cfg.QuoteAsset)
+		}
+		b.WriteString(fmt.Sprintf("forecast cumulative 30d: %s %s\n", formatSignedNoPlus(p30, 3), u30))
+		predPrinted = true
+	}
+	if predPrinted {
+		b.WriteString("forecast model: weighted trend + weekly seasonality\n")
+	}
+	if cfg.FreqtradeHistoryMode {
+		if comp7, ok := forecastCompoundEarnings(ctx, cfg, state, nil, 7); ok {
+			b.WriteString(fmt.Sprintf(
+				"compound 7d: exp %s %s (%s%%) (p20/p80 %s/%s %s)\n",
+				formatSignedNoPlus(comp7.ExpectedPnL, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+				formatSignedNoPlus(comp7.ExpectedPct, 2),
+				formatSignedNoPlus(comp7.P20PnL, 3),
+				formatSignedNoPlus(comp7.P80PnL, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+			))
+			b.WriteString(fmt.Sprintf(
+				"compound inputs: max_open_trades=%d open=%d balance=%s %s tradable_balance=%s %s modeled_trades/day=%.2f\n",
+				comp7.MaxOpenTrades,
+				comp7.OpenTrades,
+				formatSignedNoPlus(comp7.WalletBalance, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+				formatSignedNoPlus(comp7.TradableBalance, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+				comp7.TradesPerDay,
+			))
+			b.WriteString(fmt.Sprintf(
+				"formula: amount_to_trade = balance/max_trades = %s %s, predicted_earning_pct=%s%%, possible_trade_earning=%s %s\n",
+				formatSignedNoPlus(comp7.PerTradeStake, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+				formatSignedNoPlus(comp7.PredictedTradePct, 2),
+				formatSignedNoPlus(comp7.PossibleTradePnL, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+			))
+		}
+		if comp30, ok := forecastCompoundEarnings(ctx, cfg, state, nil, 30); ok {
+			b.WriteString(fmt.Sprintf(
+				"compound 30d: exp %s %s (%s%%) (p20/p80 %s/%s %s)\n",
+				formatSignedNoPlus(comp30.ExpectedPnL, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+				formatSignedNoPlus(comp30.ExpectedPct, 2),
+				formatSignedNoPlus(comp30.P20PnL, 3),
+				formatSignedNoPlus(comp30.P80PnL, 3),
+				strings.ToUpper(cfg.QuoteAsset),
+			))
+		}
+	}
 	if cfg.FreqtradeHistoryMode {
 		b.WriteString("profit % = (sell - buy - fee) / buy (closed trades)\n")
 		b.WriteString("note: Freqtrade UI may show a different % when using wallet/equity as denominator.\n")
+		b.WriteString("compound model: log-return compounding with winsorized trade returns and max-open-trades capacity cap.\n")
 	}
 	if showPnLEmojis {
 		b.WriteString("legend: 🟢 gain | 🔴 loss | ⚪ flat\n")
