@@ -1,20 +1,20 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/services/charts"
 	"context"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"trade-ops-sentinel/internal/services/charts"
 )
 
-func buildLineChartURL(title string, labels []string, values []float64, unit string) string {
-	return charts.BuildLineChartURL(title, labels, values, unit)
+func buildLineChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
+	return charts.BuildLineChartURL(title, labels, values, unit, theme, size, showLabels, showGrid)
 }
 
-func buildCumulativeProfitChartURL(title string, labels []string, values []float64, unit string) string {
-	return charts.BuildCumulativeProfitChartURL(title, labels, values, unit)
+func buildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
+	return charts.BuildCumulativeProfitChartURL(title, labels, values, unit, theme, size, showLabels, showGrid)
 }
 
 func cumulativeProfitSeriesWindow(ctx context.Context, cfg Config, state *MonitorState, binance *BinanceClient, d time.Duration) ([]string, []float64, string) {

@@ -10,9 +10,8 @@ import (
 	"time"
 )
 
-
-
 func main() {
+	log.Printf("trade-ops-sentinel %s", versionSummary())
 	cfg, err := loadConfig()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
@@ -81,6 +80,22 @@ func main() {
 	if state.getDisplayCurrency(cfg.FeeMainCurrency) == "" {
 		state.setDisplayCurrency(cfg.FeeMainCurrency)
 	}
+	chartTheme := state.getChartTheme("dark")
+	state.setChartTheme(chartTheme)
+	chartSize := state.getChartSize("standard")
+	state.setChartSize(chartSize)
+	chartLabelsEnabled := state.getChartLabelsEnabled(true)
+	state.setChartLabelsEnabled(chartLabelsEnabled)
+	chartGridEnabled := state.getChartGridEnabled(true)
+	state.setChartGridEnabled(chartGridEnabled)
+	heartbeatAlertsEnabled := state.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled)
+	apiFailureAlertsEnabled := state.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled)
+	state.setHeartbeatAlertsEnabled(heartbeatAlertsEnabled)
+	state.setAPIFailureAlertsEnabled(apiFailureAlertsEnabled)
+	if runtimeAlerts != nil {
+		runtimeAlerts.setHeartbeatAlertsEnabled(heartbeatAlertsEnabled)
+		runtimeAlerts.setAPIFailureAlertsEnabled(apiFailureAlertsEnabled)
+	}
 	startCount := state.incStartCount()
 	if err := state.save(); err != nil {
 		log.Printf("state save warning: %v", err)
@@ -102,7 +117,8 @@ func main() {
 		restartCount = 0
 	}
 	startup := fmt.Sprintf(
-		"Trade Ops Sentinel started\nSymbol=%s\n%s\nTracked symbols=%d\nInterval=%s\nContainer=%s Restarts=%d",
+		"Trade Ops Sentinel started\nVersion=%s\nSymbol=%s\n%s\nTracked symbols=%d\nInterval=%s\nContainer=%s Restarts=%d",
+		versionSummary(),
 		cfg.Symbol,
 		cfg.thresholdModeLine(),
 		len(cfg.TrackedSymbols),

@@ -41,6 +41,7 @@ type Config struct {
 	FeeMainCurrency     string
 
 	HeartbeatEnabled       bool
+	HeartbeatAlertEnabled  bool
 	HeartbeatStaleAfter    time.Duration
 	HeartbeatCheckInterval time.Duration
 	HeartbeatPingURL       string

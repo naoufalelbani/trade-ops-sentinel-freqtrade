@@ -13,6 +13,8 @@ func NormalizeCommand(raw string) string {
 		return "/menu"
 	case "help", "/help":
 		return "/help"
+	case "version", "/version":
+		return "/version"
 	default:
 		return s
 	}

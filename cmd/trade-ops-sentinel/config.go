@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ func loadConfig() (Config, error) {
 		DailyDigestTrades:         mustInt("DAILY_DIGEST_TRADES", 3),
 		FeeMainCurrency:           strings.ToUpper(getEnv("FEE_MAIN_CURRENCY", "BNB")),
 		HeartbeatEnabled:          mustBool("HEARTBEAT_ENABLED", true),
+		HeartbeatAlertEnabled:     mustBool("HEARTBEAT_ALERT_ENABLED", true),
 		HeartbeatStaleAfter:       mustDuration("HEARTBEAT_STALE_AFTER", "10m"),
 		HeartbeatCheckInterval:    mustDuration("HEARTBEAT_CHECK_INTERVAL", "1m"),
 		HeartbeatPingURL:          getEnv("HEARTBEAT_PING_URL", ""),
@@ -151,6 +153,12 @@ func loadConfig() (Config, error) {
 	}
 	if cfg.TelegramToken == "" || cfg.TelegramChatID == "" {
 		return Config{}, errors.New("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required for button monitoring")
+	}
+	if err := requireHTTPSBaseURL("BINANCE_BASE_URL", cfg.BinanceBaseURL); err != nil {
+		return Config{}, err
+	}
+	if err := requireHTTPSBaseURL("TELEGRAM_BASE_URL", cfg.TelegramBaseURL); err != nil {
+		return Config{}, err
 	}
 	if len(cfg.TrackedSymbols) == 0 {
 		return Config{}, errors.New("TRACKED_SYMBOLS must have at least one symbol")
@@ -297,6 +305,17 @@ func mustDuration(key, fallback string) time.Duration {
 		log.Fatalf("invalid duration %s=%s", key, raw)
 	}
 	return d
+}
+
+func requireHTTPSBaseURL(name, raw string) error {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u == nil || u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("%s invalid URL: %q", name, raw)
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return fmt.Errorf("%s must use https", name)
+	}
+	return nil
 }
 
 func mustBool(key string, fallback bool) bool {

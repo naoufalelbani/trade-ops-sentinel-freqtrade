@@ -31,8 +31,9 @@ type tgUpdate struct {
 }
 
 type tgMessage struct {
-	MessageID int    `json:"message_id"`
-	Text      string `json:"text"`
+	MessageID int     `json:"message_id"`
+	Text      string  `json:"text"`
+	From      *tgUser `json:"from,omitempty"`
 	Chat      struct {
 		ID int64 `json:"id"`
 	} `json:"chat"`
@@ -41,5 +42,13 @@ type tgMessage struct {
 type tgCallbackQuery struct {
 	ID      string     `json:"id"`
 	Data    string     `json:"data"`
+	From    *tgUser    `json:"from,omitempty"`
 	Message *tgMessage `json:"message,omitempty"`
+}
+
+type tgUser struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 }

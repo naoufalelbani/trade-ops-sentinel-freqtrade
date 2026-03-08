@@ -1,0 +1,11 @@
+services:
+  trade-ops-sentinel:
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-v0.2.1}
+        APP_COMMIT: ${APP_COMMIT:-local}
+        APP_BUILD_DATE: ${APP_BUILD_DATE:-unknown}
+    image: ${TRADE_OPS_LOCAL_IMAGE:-trade-ops-sentinel:local}

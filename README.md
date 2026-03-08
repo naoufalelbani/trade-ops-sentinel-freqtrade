@@ -61,10 +61,23 @@ cp .env.example .env
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
-3. Start:
+3. Start from GitHub Container Registry image (default):
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
+```
+
+Optional: set a custom image in `.env`:
+
+```env
+TRADE_OPS_IMAGE=ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.1
+```
+
+For local rebuild from source, use the local override file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
 4. See logs:
@@ -155,8 +168,11 @@ When using `FREQTRADE`, the app requires:
 | `RECV_WINDOW_MS` | `5000` | Binance recvWindow |
 | `SUMMARY_EVERY_CHECKS` | `10` | Status summary cadence |
 | `NOTIFY_ON_EVERY_CHECK` | `false` | Send update each cycle |
-| `BINANCE_BASE_URL` | `https://api.binance.com` | Binance API base URL |
-| `TELEGRAM_BASE_URL` | `https://api.telegram.org` | Telegram API base URL |
+| `BINANCE_BASE_URL` | `https://api.binance.com` | Binance API base URL (must be `https`) |
+| `TELEGRAM_BASE_URL` | `https://api.telegram.org` | Telegram API base URL (must be `https`) |
+| `APP_VERSION` | `v0.2.1` | Build/version label shown on startup and `/version` |
+| `APP_COMMIT` | `local` | Build commit shown on startup and `/version` |
+| `APP_BUILD_DATE` | `unknown` | Build timestamp shown on startup and `/version` |
 
 #### Reporting
 
@@ -174,6 +190,7 @@ When using `FREQTRADE`, the app requires:
 | Variable | Default | Description |
 |---|---:|---|
 | `HEARTBEAT_ENABLED` | `true` | Enable stale-check watchdog |
+| `HEARTBEAT_ALERT_ENABLED` | `true` | Send Telegram heartbeat watchdog alerts |
 | `HEARTBEAT_STALE_AFTER` | `10m` | Stale threshold |
 | `HEARTBEAT_CHECK_INTERVAL` | `1m` | Watchdog polling interval |
 | `HEARTBEAT_PING_URL` | empty | External heartbeat ping URL |
@@ -225,6 +242,7 @@ When using `FREQTRADE`, the app requires:
 - `/start` or `/menu`: open menu and reply keyboard.
 - `/status`: account snapshot, fees, pnl, system metrics, watchdog.
 - `/daily`: send full daily report immediately.
+- `/version`: show app version, commit, and build date.
 - `/help`: show help text.
 
 ### Reply Keyboard
@@ -239,7 +257,7 @@ When using `FREQTRADE`, the app requires:
 - Actions: refill now, force buy, report now.
 - Reports: daily/weekly/monthly reports, fees, pnl, trades, leaders, PnL table.
 - Charts: fee/pnl charts, cumulative views, custom windows, date/range tools.
-- Settings: fee display currency and Freqtrade health.
+- Settings: fee currency, chart theme (dark/light), alert toggles, and Freqtrade health.
 
 ### Date/Range Input Rules
 

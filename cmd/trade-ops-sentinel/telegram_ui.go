@@ -252,6 +252,12 @@ func settingsKeyboard() *inlineKeyboardMarkup {
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{
 			{{Text: "Currency", CallbackData: "fee_currency_menu"}},
+			{{Text: "Chart Theme", CallbackData: "chart_theme_menu"}},
+			{{Text: "Chart Size", CallbackData: "chart_size_menu"}},
+			{{Text: "Chart Labels", CallbackData: "chart_labels_menu"}},
+			{{Text: "Chart Grid", CallbackData: "chart_grid_menu"}},
+			{{Text: "Alert Settings", CallbackData: "alerts_menu"}},
+			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
 			{{Text: "Freqtrade Health", CallbackData: "freqtrade_health"}},
 			{{Text: "Back", CallbackData: "menu_main"}},
 		},
@@ -286,6 +292,82 @@ func feeCurrencyKeyboard() *inlineKeyboardMarkup {
 	}
 }
 
+func chartThemeKeyboard(current string) *inlineKeyboardMarkup {
+	label := strings.ToUpper(strings.TrimSpace(current))
+	if label != "LIGHT" {
+		label = "DARK"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Dark", CallbackData: "chart_theme_dark"}, {Text: "Light", CallbackData: "chart_theme_light"}},
+			{{Text: "Current: " + label, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
+func alertSettingsKeyboard(heartbeatEnabled, apiEnabled bool) *inlineKeyboardMarkup {
+	heartbeatLabel := "Heartbeat: OFF"
+	if heartbeatEnabled {
+		heartbeatLabel = "Heartbeat: ON"
+	}
+	apiLabel := "API Alerts: OFF"
+	if apiEnabled {
+		apiLabel = "API Alerts: ON"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "HB On", CallbackData: "alert_heartbeat_on"}, {Text: "HB Off", CallbackData: "alert_heartbeat_off"}},
+			{{Text: "API On", CallbackData: "alert_api_on"}, {Text: "API Off", CallbackData: "alert_api_off"}},
+			{{Text: heartbeatLabel, CallbackData: "settings_ignore"}, {Text: apiLabel, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
+func chartSizeKeyboard(current string) *inlineKeyboardMarkup {
+	c := strings.ToLower(strings.TrimSpace(current))
+	if c != "compact" && c != "wide" {
+		c = "standard"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Compact", CallbackData: "chart_size_compact"}, {Text: "Standard", CallbackData: "chart_size_standard"}},
+			{{Text: "Wide", CallbackData: "chart_size_wide"}},
+			{{Text: "Current: " + strings.Title(c), CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
+func chartLabelsKeyboard(enabled bool) *inlineKeyboardMarkup {
+	label := "Current: OFF"
+	if enabled {
+		label = "Current: ON"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Labels ON", CallbackData: "chart_labels_on"}, {Text: "Labels OFF", CallbackData: "chart_labels_off"}},
+			{{Text: label, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
+func chartGridKeyboard(enabled bool) *inlineKeyboardMarkup {
+	label := "Current: OFF"
+	if enabled {
+		label = "Current: ON"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Grid ON", CallbackData: "chart_grid_on"}, {Text: "Grid OFF", CallbackData: "chart_grid_off"}},
+			{{Text: label, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
 func helpText() string {
 	return strings.Join([]string{
 		"Trade Ops Sentinel - Help",
@@ -294,13 +376,14 @@ func helpText() string {
 		"/start or /menu - open menu",
 		"/status - snapshot (balance, fees, pnl, system, watchdog)",
 		"/daily - full daily report + charts",
+		"/version - app version, commit, build date",
 		"/help - this help",
 		"",
 		"Menu sections:",
 		"Actions: Refill Now, Force Buy BNB, Daily Report Now",
 		"Reports: day/week/month for Report, Fees, PnL, Trades, Leaders, plus PnL 7d table",
 		"Charts: fees, pnl, cumulative fees/profit, custom windows, range tools",
-		"Settings: display currency (BNB/USDT), Freqtrade Health",
+		"Settings: currency, chart theme/size/labels/grid, alert toggles, Freqtrade Health",
 		"",
 		"Chart options:",
 		"Cum Profit presets: 24h, 48h, 72h, 7d, 30d",
@@ -324,5 +407,5 @@ func helpText() string {
 		"Notes:",
 		"Display currency affects reports/charts values (BNB or USDT)",
 		"Some range/history features need prior usage before history appears",
-	}, "\\n")
+	}, "\n")
 }

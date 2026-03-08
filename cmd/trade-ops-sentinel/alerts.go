@@ -1,13 +1,13 @@
 package main
 
 import (
-    "fmt"
-    "os"
-    "sort"
-    "strconv"
-    "strings"
-    "sync"
-    "time"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var runtimeAlerts *alertManager
@@ -23,6 +23,9 @@ type alertManager struct {
 
 	notifier *TelegramNotifier
 	cfg      Config
+
+	heartbeatAlertsEnabled  bool
+	apiFailureAlertsEnabled bool
 
 	botContainerName string
 	botRestartCount  int
@@ -62,25 +65,27 @@ func newAlertManager(cfg Config, notifier *TelegramNotifier) *alertManager {
 		host = "trade-ops-sentinel"
 	}
 	return &alertManager{
-		botContainerName: host,
-		notifier:         notifier,
-		cfg:              cfg,
-		lastCheckSuccess: time.Now().UTC(),
-		apiFailureCounts: make(map[string]int),
-		apiFailureLast:   make(map[string]time.Time),
-		apiLatencySpikes: make(map[string]int),
-		apiLatencyLast:   make(map[string]time.Time),
-		apiTotalCalls:    make(map[string]int),
-		apiSuccessCalls:  make(map[string]int),
-		apiErrorCalls:    make(map[string]int),
-		apiLastErr:       make(map[string]string),
-		apiLastLatency:   make(map[string]time.Duration),
-		apiRetryCount:    make(map[string]int),
-		apiBackoffUntil:  make(map[string]time.Time),
-		apiDegraded:      make(map[string]bool),
-		dedupLast:        make(map[string]time.Time),
-		errors:           make([]alertErrorEvent, 0, 64),
-		services:         make(map[string]*serviceHeartbeat),
+		botContainerName:        host,
+		notifier:                notifier,
+		cfg:                     cfg,
+		heartbeatAlertsEnabled:  cfg.HeartbeatAlertEnabled,
+		apiFailureAlertsEnabled: cfg.APIFailureAlertEnabled,
+		lastCheckSuccess:        time.Now().UTC(),
+		apiFailureCounts:        make(map[string]int),
+		apiFailureLast:          make(map[string]time.Time),
+		apiLatencySpikes:        make(map[string]int),
+		apiLatencyLast:          make(map[string]time.Time),
+		apiTotalCalls:           make(map[string]int),
+		apiSuccessCalls:         make(map[string]int),
+		apiErrorCalls:           make(map[string]int),
+		apiLastErr:              make(map[string]string),
+		apiLastLatency:          make(map[string]time.Duration),
+		apiRetryCount:           make(map[string]int),
+		apiBackoffUntil:         make(map[string]time.Time),
+		apiDegraded:             make(map[string]bool),
+		dedupLast:               make(map[string]time.Time),
+		errors:                  make([]alertErrorEvent, 0, 64),
+		services:                make(map[string]*serviceHeartbeat),
 	}
 }
 
@@ -107,7 +112,7 @@ func (a *alertManager) markCheckFailure(err error) {
 }
 
 func (a *alertManager) checkHeartbeatStale() {
-	if a == nil || !a.cfg.HeartbeatEnabled || a.cfg.HeartbeatStaleAfter <= 0 {
+	if a == nil || !a.cfg.HeartbeatEnabled || a.cfg.HeartbeatStaleAfter <= 0 || !a.heartbeatAlertsOn() {
 		return
 	}
 	a.mu.Lock()
@@ -162,7 +167,7 @@ func (a *alertManager) checkHeartbeatStale() {
 }
 
 func (a *alertManager) observeAPICall(source string, duration time.Duration, err error) {
-	if a == nil || !a.cfg.APIFailureAlertEnabled {
+	if a == nil || !a.apiFailureAlertsOn() {
 		return
 	}
 	now := time.Now().UTC()
@@ -452,4 +457,40 @@ func (a *alertManager) sendRaw(msg string) {
 		return
 	}
 	safeSend(a.notifier, msg, defaultKeyboard())
+}
+
+func (a *alertManager) heartbeatAlertsOn() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.heartbeatAlertsEnabled
+}
+
+func (a *alertManager) apiFailureAlertsOn() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.apiFailureAlertsEnabled
+}
+
+func (a *alertManager) setHeartbeatAlertsEnabled(v bool) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.heartbeatAlertsEnabled = v
+	a.mu.Unlock()
+}
+
+func (a *alertManager) setAPIFailureAlertsEnabled(v bool) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.apiFailureAlertsEnabled = v
+	a.mu.Unlock()
 }

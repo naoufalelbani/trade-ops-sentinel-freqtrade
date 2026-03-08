@@ -1,7 +1,6 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/domain"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"trade-ops-sentinel/internal/domain"
 )
 
 func buildStatusReport(ctx context.Context, cfg Config, binance *BinanceClient, state *MonitorState) (string, error) {
@@ -59,9 +59,10 @@ func buildStatusReport(ctx context.Context, cfg Config, binance *BinanceClient, 
 	if runtimeAlerts != nil {
 		watchdogLine = runtimeAlerts.buildWatchdogSummary()
 	}
+	releaseLine := fmt.Sprintf("Release: %s | Notes: %s", versionSummary(), releaseNotesInline(2))
 
 	return fmt.Sprintf(
-		"Status\nBNB: %s\n%s: %s\n%s: %.4f\nPortfolio: %s\n\n%s\nRefills: D=%d W=%d M=%d\n%s\n%s\n\nPnL\n%s\n%s\n%s",
+		"Status\nBNB: %s\n%s: %s\n%s: %.4f\nPortfolio: %s\n\n%s\nRefills: D=%d W=%d M=%d\n%s\n%s\n%s\n\nPnL\n%s\n%s\n%s",
 		formatBNBWithQuote(bnbFree, price, cfg),
 		cfg.QuoteAsset,
 		formatQuoteByDisplay(quoteFree, cfg, mainCurrency, spot),
@@ -74,6 +75,7 @@ func buildStatusReport(ctx context.Context, cfg Config, binance *BinanceClient, 
 		refillM.Count,
 		systemLine,
 		watchdogLine,
+		releaseLine,
 		pnlLine("Day", pnlSnap.dayOK, pnlSnap.dayPnl, pnlSnap.dayPct),
 		pnlLine("Week", pnlSnap.weekOK, pnlSnap.weekPnl, pnlSnap.weekPct),
 		pnlLine("Month", pnlSnap.monOK, pnlSnap.monPnl, pnlSnap.monPct),

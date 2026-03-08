@@ -1,13 +1,13 @@
 package main
 
 import (
-	telegramiface "trade-ops-sentinel/internal/interfaces/telegram"
 	"context"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+	telegramiface "trade-ops-sentinel/internal/interfaces/telegram"
 )
 
 func telegramLoop(ctx context.Context, cfg Config, binance *BinanceClient, notifier *TelegramNotifier, state *MonitorState) {
@@ -139,6 +139,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			}
 		case "/help":
 			safeSendToChat(notifier, upd.Message.Chat.ID, helpText(), defaultReplyKeyboard())
+		case "/version":
+			safeSendToChat(notifier, upd.Message.Chat.ID, versionReport(), defaultReplyKeyboard())
 		default:
 			safeSendToChat(notifier, upd.Message.Chat.ID, "Unknown command.\n\n"+helpText(), defaultReplyKeyboard())
 		}
@@ -156,6 +158,26 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 	safeAnswerCallback(notifier, upd.CallbackQuery.ID, "Processing...")
 	data := upd.CallbackQuery.Data
 
+	showSettingsMenu := func(text string) {
+		safeSendToChat(notifier, chatID, text, settingsKeyboard())
+	}
+	recordSettingChange := func(setting, oldValue, newValue string) {
+		chatActorID, userActorID, username := actorFromUpdate(upd)
+		appendSettingsAudit(state, settingsAuditEvent{
+			TS:       time.Now().UTC().Format(time.RFC3339),
+			ChatID:   chatActorID,
+			UserID:   userActorID,
+			Username: username,
+			Setting:  setting,
+			OldValue: oldValue,
+			NewValue: newValue,
+		})
+	}
+	chartTheme := state.getChartTheme("dark")
+	chartSize := state.getChartSize("standard")
+	chartLabels := state.getChartLabelsEnabled(true)
+	chartGrid := state.getChartGridEnabled(true)
+
 	switch data {
 	case "menu", "menu_main":
 		safeSendToChat(notifier, chatID, "Main menu", defaultKeyboard())
@@ -166,7 +188,11 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 	case "menu_charts":
 		safeSendToChat(notifier, chatID, "Charts menu", chartsKeyboard())
 	case "menu_settings":
-		safeSendToChat(notifier, chatID, "Settings menu", settingsKeyboard())
+		showSettingsMenu("Settings menu")
+	case "settings_overview":
+		showSettingsMenu(state.settingsSummary(cfg, runtimeAlerts))
+	case "settings_ignore":
+		showSettingsMenu("Settings menu")
 	case "refill_now":
 		msg, err := executeManualBNBBuy(ctx, cfg, binance, state, false)
 		if err != nil {
@@ -193,13 +219,127 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		current := state.getDisplayCurrency(cfg.FeeMainCurrency)
 		safeSendToChat(notifier, chatID, fmt.Sprintf("Choose display currency (current: %s):", current), feeCurrencyKeyboard())
 	case "fee_currency_bnb":
+		old := state.getDisplayCurrency(cfg.FeeMainCurrency)
 		state.setDisplayCurrency("BNB")
 		_ = state.save()
-		safeSendToChat(notifier, chatID, "Display currency set to BNB.", settingsKeyboard())
+		recordSettingChange("display_currency", old, "BNB")
+		showSettingsMenu("Display currency set to BNB.")
 	case "fee_currency_usdt":
+		old := state.getDisplayCurrency(cfg.FeeMainCurrency)
 		state.setDisplayCurrency("USDT")
 		_ = state.save()
-		safeSendToChat(notifier, chatID, "Display currency set to USDT.", settingsKeyboard())
+		recordSettingChange("display_currency", old, "USDT")
+		showSettingsMenu("Display currency set to USDT.")
+	case "chart_theme_menu":
+		current := state.getChartTheme("dark")
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Choose chart theme (current: %s):", strings.Title(current)), chartThemeKeyboard(current))
+	case "chart_theme_dark":
+		old := state.getChartTheme("dark")
+		state.setChartTheme("dark")
+		_ = state.save()
+		recordSettingChange("chart_theme", old, "dark")
+		showSettingsMenu("Chart theme set to Dark.")
+	case "chart_theme_light":
+		old := state.getChartTheme("dark")
+		state.setChartTheme("light")
+		_ = state.save()
+		recordSettingChange("chart_theme", old, "light")
+		showSettingsMenu("Chart theme set to Light.")
+	case "chart_size_menu":
+		current := state.getChartSize("standard")
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Choose chart size (current: %s):", strings.Title(current)), chartSizeKeyboard(current))
+	case "chart_size_compact":
+		old := state.getChartSize("standard")
+		state.setChartSize("compact")
+		_ = state.save()
+		recordSettingChange("chart_size", old, "compact")
+		showSettingsMenu("Chart size set to Compact.")
+	case "chart_size_standard":
+		old := state.getChartSize("standard")
+		state.setChartSize("standard")
+		_ = state.save()
+		recordSettingChange("chart_size", old, "standard")
+		showSettingsMenu("Chart size set to Standard.")
+	case "chart_size_wide":
+		old := state.getChartSize("standard")
+		state.setChartSize("wide")
+		_ = state.save()
+		recordSettingChange("chart_size", old, "wide")
+		showSettingsMenu("Chart size set to Wide.")
+	case "chart_labels_menu":
+		current := state.getChartLabelsEnabled(true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Chart value labels are currently: %t", current), chartLabelsKeyboard(current))
+	case "chart_labels_on":
+		old := strconv.FormatBool(state.getChartLabelsEnabled(true))
+		state.setChartLabelsEnabled(true)
+		_ = state.save()
+		recordSettingChange("chart_labels_enabled", old, "true")
+		showSettingsMenu("Chart labels enabled.")
+	case "chart_labels_off":
+		old := strconv.FormatBool(state.getChartLabelsEnabled(true))
+		state.setChartLabelsEnabled(false)
+		_ = state.save()
+		recordSettingChange("chart_labels_enabled", old, "false")
+		showSettingsMenu("Chart labels disabled.")
+	case "chart_grid_menu":
+		current := state.getChartGridEnabled(true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Chart grid is currently: %t", current), chartGridKeyboard(current))
+	case "chart_grid_on":
+		old := strconv.FormatBool(state.getChartGridEnabled(true))
+		state.setChartGridEnabled(true)
+		_ = state.save()
+		recordSettingChange("chart_grid_enabled", old, "true")
+		showSettingsMenu("Chart grid enabled.")
+	case "chart_grid_off":
+		old := strconv.FormatBool(state.getChartGridEnabled(true))
+		state.setChartGridEnabled(false)
+		_ = state.save()
+		recordSettingChange("chart_grid_enabled", old, "false")
+		showSettingsMenu("Chart grid disabled.")
+	case "alerts_menu", "alerts_settings", "alert_settings", "settings_alerts":
+		heartbeatEnabled := cfg.HeartbeatAlertEnabled
+		apiEnabled := cfg.APIFailureAlertEnabled
+		if runtimeAlerts != nil {
+			heartbeatEnabled = runtimeAlerts.heartbeatAlertsOn()
+			apiEnabled = runtimeAlerts.apiFailureAlertsOn()
+		}
+		safeSendToChat(notifier, chatID, "Toggle runtime alerts:", alertSettingsKeyboard(heartbeatEnabled, apiEnabled))
+	case "alert_heartbeat_on", "heartbeat_alert_on":
+		old := strconv.FormatBool(state.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled))
+		if runtimeAlerts != nil {
+			runtimeAlerts.setHeartbeatAlertsEnabled(true)
+		}
+		state.setHeartbeatAlertsEnabled(true)
+		_ = state.save()
+		recordSettingChange("heartbeat_alerts_enabled", old, "true")
+		showSettingsMenu("Heartbeat alerts enabled.")
+	case "alert_heartbeat_off", "heartbeat_alert_off":
+		old := strconv.FormatBool(state.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled))
+		if runtimeAlerts != nil {
+			runtimeAlerts.setHeartbeatAlertsEnabled(false)
+		}
+		state.setHeartbeatAlertsEnabled(false)
+		_ = state.save()
+		recordSettingChange("heartbeat_alerts_enabled", old, "false")
+		showSettingsMenu("Heartbeat alerts disabled.")
+	case "alert_api_on", "api_alert_on":
+		old := strconv.FormatBool(state.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled))
+		if runtimeAlerts != nil {
+			runtimeAlerts.setAPIFailureAlertsEnabled(true)
+		}
+		state.setAPIFailureAlertsEnabled(true)
+		_ = state.save()
+		recordSettingChange("api_failure_alerts_enabled", old, "true")
+		showSettingsMenu("API failure alerts enabled.")
+	case "alert_api_off", "api_alert_off":
+		old := strconv.FormatBool(state.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled))
+		if runtimeAlerts != nil {
+			runtimeAlerts.setAPIFailureAlertsEnabled(false)
+		}
+		state.setAPIFailureAlertsEnabled(false)
+		_ = state.save()
+		recordSettingChange("api_failure_alerts_enabled", old, "false")
+		showSettingsMenu("API failure alerts disabled.")
 	case "report_day", "report_week", "report_month":
 		dur := selectDuration(data)
 		label := durationLabel(data)
@@ -317,7 +457,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, chatID, "No fee trade data for chart yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildLineChartURL("BNB Fees (Last 30 Days)", labels, values, "BNB")
+		chartURL := buildLineChartURL("BNB Fees (Last 30 Days)", labels, values, "BNB", chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, "Fees chart")
 	case "chart_cum_fees_day", "chart_cum_fees_week", "chart_cum_fees_month":
 		dur := selectDuration(data)
@@ -330,7 +470,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, chatID, "No cumulative fee data yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildCumulativeProfitChartURL("Cumulative Fees", labels, values, unit)
+		chartURL := buildCumulativeProfitChartURL("Cumulative Fees", labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, "Cumulative Fees")
 	case "chart_pnl":
 		labels, values := state.pnlSeriesLastNDays(30)
@@ -338,7 +478,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, chatID, "No PnL data for chart yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildLineChartURL("PnL Delta (Last 30 Days)", labels, values, cfg.QuoteAsset)
+		chartURL := buildLineChartURL("PnL Delta (Last 30 Days)", labels, values, cfg.QuoteAsset, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, "PnL chart")
 	case "chart_cum_profit_day", "chart_cum_profit_48h", "chart_cum_profit_72h", "chart_cum_profit_week", "chart_cum_profit_month":
 		dur := selectDuration(data)
@@ -347,7 +487,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, chatID, "No cumulative profit data yet", defaultKeyboard())
 			return
 		}
-		chartURL := buildCumulativeProfitChartURL("Cumulative Profit", labels, values, unit)
+		chartURL := buildCumulativeProfitChartURL("Cumulative Profit", labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, "Cumulative Profit")
 	case "chart_cum_profit_custom":
 		setAwaitingCustomCumProfitWindow(chatID, true)
@@ -421,7 +561,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 				return
 			}
 			title := fmt.Sprintf("Cumulative Profit (%s, %s)", label, modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit)
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
 			safeSendPhotoToChat(notifier, chatID, chartURL, title)
 			return
 		case telegramiface.CallbackCalendarIgnore:
@@ -581,7 +721,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			_ = state.save()
 			clearRangeFromSelection(chatID)
 			title := fmt.Sprintf("Cumulative Profit (%s ago -> %s ago, %s)", fromLabel, toLabel, modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit)
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
 			safeSendPhotoToChat(notifier, chatID, chartURL, title)
 			return
 		case telegramiface.CallbackRangeHistory:
@@ -634,10 +774,21 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			state.addCustomRange(from, to)
 			_ = state.save()
 			title := fmt.Sprintf("Cumulative Profit (%s -> %s, %s)", from.Format("2006-01-02 15:04"), to.Format("2006-01-02 15:04"), modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit)
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
 			safeSendPhotoToChat(notifier, chatID, chartURL, title)
 			return
 		default:
+			if strings.HasPrefix(data, "alert") || strings.Contains(data, "alerts") {
+				heartbeatEnabled := cfg.HeartbeatAlertEnabled
+				apiEnabled := cfg.APIFailureAlertEnabled
+				if runtimeAlerts != nil {
+					heartbeatEnabled = runtimeAlerts.heartbeatAlertsOn()
+					apiEnabled = runtimeAlerts.apiFailureAlertsOn()
+				}
+				safeSendToChat(notifier, chatID, "Alert settings opened (fallback route).", alertSettingsKeyboard(heartbeatEnabled, apiEnabled))
+				return
+			}
+			log.Printf("unknown telegram callback action: %q", data)
 			safeSendToChat(notifier, chatID, "Unknown action", defaultKeyboard())
 		}
 	}

@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
-    "time"
+	"time"
 )
 
 type freqtradeHistoryCache struct {

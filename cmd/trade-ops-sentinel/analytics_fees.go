@@ -486,4 +486,3 @@ func freqtradePnlSince(trades []freqtradeTrade, since time.Time) (float64, float
 	}
 	return pnl, (pnl / stake) * 100, true
 }
-

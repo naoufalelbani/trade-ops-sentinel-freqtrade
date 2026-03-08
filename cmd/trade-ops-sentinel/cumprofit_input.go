@@ -1,11 +1,11 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/services"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+	"trade-ops-sentinel/internal/services"
 )
 
 func selectDuration(key string) time.Duration {

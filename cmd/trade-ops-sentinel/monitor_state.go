@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -106,6 +107,145 @@ func (s *MonitorState) setDisplayCurrency(v string) {
 		return
 	}
 	s.feeCurrency = up
+}
+
+func (s *MonitorState) getChartTheme(defaultVal string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v := strings.ToLower(strings.TrimSpace(s.chartTheme))
+	if v == "dark" || v == "light" {
+		return v
+	}
+	d := strings.ToLower(strings.TrimSpace(defaultVal))
+	if d == "light" {
+		return "light"
+	}
+	return "dark"
+}
+
+func (s *MonitorState) setChartTheme(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t := strings.ToLower(strings.TrimSpace(v))
+	if t != "dark" && t != "light" {
+		return
+	}
+	s.chartTheme = t
+}
+
+func (s *MonitorState) getChartSize(defaultVal string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v := strings.ToLower(strings.TrimSpace(s.chartSize))
+	if v == "compact" || v == "standard" || v == "wide" {
+		return v
+	}
+	d := strings.ToLower(strings.TrimSpace(defaultVal))
+	if d == "compact" || d == "wide" {
+		return d
+	}
+	return "standard"
+}
+
+func (s *MonitorState) setChartSize(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t := strings.ToLower(strings.TrimSpace(v))
+	if t != "compact" && t != "standard" && t != "wide" {
+		return
+	}
+	s.chartSize = t
+}
+
+func (s *MonitorState) getChartLabelsEnabled(defaultVal bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hasChartLabelsEnabled {
+		return s.chartLabelsEnabled
+	}
+	return defaultVal
+}
+
+func (s *MonitorState) setChartLabelsEnabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.chartLabelsEnabled = v
+	s.hasChartLabelsEnabled = true
+}
+
+func (s *MonitorState) getChartGridEnabled(defaultVal bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hasChartGridEnabled {
+		return s.chartGridEnabled
+	}
+	return defaultVal
+}
+
+func (s *MonitorState) setChartGridEnabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.chartGridEnabled = v
+	s.hasChartGridEnabled = true
+}
+
+func (s *MonitorState) getHeartbeatAlertsEnabled(defaultVal bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hasHeartbeatAlertsEnabled {
+		return s.heartbeatAlertsEnabled
+	}
+	return defaultVal
+}
+
+func (s *MonitorState) setHeartbeatAlertsEnabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.heartbeatAlertsEnabled = v
+	s.hasHeartbeatAlertsEnabled = true
+}
+
+func (s *MonitorState) getAPIFailureAlertsEnabled(defaultVal bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hasAPIFailureAlertsEnabled {
+		return s.apiFailureAlertsEnabled
+	}
+	return defaultVal
+}
+
+func (s *MonitorState) setAPIFailureAlertsEnabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.apiFailureAlertsEnabled = v
+	s.hasAPIFailureAlertsEnabled = true
+}
+
+func (s *MonitorState) settingsSummary(cfg Config, alerts *alertManager) string {
+	displayCurrency := s.getDisplayCurrency(cfg.FeeMainCurrency)
+	chartTheme := strings.Title(s.getChartTheme("dark"))
+	chartSize := strings.Title(s.getChartSize("standard"))
+	chartLabelsEnabled := s.getChartLabelsEnabled(true)
+	chartGridEnabled := s.getChartGridEnabled(true)
+	heartbeatEnabled := cfg.HeartbeatAlertEnabled
+	apiEnabled := cfg.APIFailureAlertEnabled
+	if alerts != nil {
+		heartbeatEnabled = alerts.heartbeatAlertsOn()
+		apiEnabled = alerts.apiFailureAlertsOn()
+	} else {
+		heartbeatEnabled = s.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled)
+		apiEnabled = s.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled)
+	}
+	return strings.Join([]string{
+		"Settings Summary",
+		fmt.Sprintf("Currency=%s", displayCurrency),
+		fmt.Sprintf("Chart theme=%s", chartTheme),
+		fmt.Sprintf("Chart size=%s", chartSize),
+		fmt.Sprintf("Chart labels=%t", chartLabelsEnabled),
+		fmt.Sprintf("Chart grid=%t", chartGridEnabled),
+		fmt.Sprintf("Heartbeat alerts=%t", heartbeatEnabled),
+		fmt.Sprintf("API failure alerts=%t", apiEnabled),
+	}, "\n")
 }
 
 func (s *MonitorState) addCustomCumWindow(token string) {
@@ -474,14 +614,32 @@ func (s *MonitorState) save() error {
 		Snapshots:    append([]Snapshot(nil), s.snapshots...),
 		RefillEvents: append([]RefillEvent(nil), s.refillEvents...),
 		FeeCurrency:  s.feeCurrency,
+		ChartTheme:   s.chartTheme,
+		ChartSize:    s.chartSize,
 		CustomCumWin: append([]string(nil), s.customCumWin...),
 		CustomRanges: append([]rangeRecord(nil), s.customRanges...),
+	}
+	if s.hasChartLabelsEnabled {
+		v := s.chartLabelsEnabled
+		p.ChartLabelsEnabled = &v
+	}
+	if s.hasChartGridEnabled {
+		v := s.chartGridEnabled
+		p.ChartGridEnabled = &v
+	}
+	if s.hasHeartbeatAlertsEnabled {
+		v := s.heartbeatAlertsEnabled
+		p.HeartbeatAlertsEnabled = &v
+	}
+	if s.hasAPIFailureAlertsEnabled {
+		v := s.apiFailureAlertsEnabled
+		p.APIFailureAlertsEnabled = &v
 	}
 	if !s.lastBuyAt.IsZero() {
 		p.LastBuyAt = s.lastBuyAt.UnixMilli()
 	}
 
-	if err := os.MkdirAll(filepath.Dir(s.stateFile), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.stateFile), 0o700); err != nil {
 		return err
 	}
 
@@ -489,7 +647,7 @@ func (s *MonitorState) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.stateFile, b, 0o644)
+	return os.WriteFile(s.stateFile, b, 0o600)
 }
 
 func (s *MonitorState) load() error {
@@ -516,6 +674,24 @@ func (s *MonitorState) load() error {
 	s.snapshots = p.Snapshots
 	s.refillEvents = p.RefillEvents
 	s.feeCurrency = strings.ToUpper(strings.TrimSpace(p.FeeCurrency))
+	s.chartTheme = strings.ToLower(strings.TrimSpace(p.ChartTheme))
+	s.chartSize = strings.ToLower(strings.TrimSpace(p.ChartSize))
+	if p.ChartLabelsEnabled != nil {
+		s.hasChartLabelsEnabled = true
+		s.chartLabelsEnabled = *p.ChartLabelsEnabled
+	}
+	if p.ChartGridEnabled != nil {
+		s.hasChartGridEnabled = true
+		s.chartGridEnabled = *p.ChartGridEnabled
+	}
+	if p.HeartbeatAlertsEnabled != nil {
+		s.hasHeartbeatAlertsEnabled = true
+		s.heartbeatAlertsEnabled = *p.HeartbeatAlertsEnabled
+	}
+	if p.APIFailureAlertsEnabled != nil {
+		s.hasAPIFailureAlertsEnabled = true
+		s.apiFailureAlertsEnabled = *p.APIFailureAlertsEnabled
+	}
 	s.customCumWin = append([]string(nil), p.CustomCumWin...)
 	s.customRanges = append([]rangeRecord(nil), p.CustomRanges...)
 	if len(s.snapshots) > s.maxSnapshots {

@@ -485,7 +485,7 @@ func decodeBinanceError(code int, body []byte) error {
 		}
 		return out
 	}
-	return fmt.Errorf("binance http=%d body=%s", code, strings.TrimSpace(string(body)))
+	return fmt.Errorf("binance http=%d body=%s", code, sanitizeHTTPErrorBody(body, 300))
 }
 
 func signHMACSHA256(msg, secret string) string {
@@ -602,9 +602,26 @@ func (t *TelegramNotifier) callWithContext(ctx context.Context, method string, p
 	defer res.Body.Close()
 	body, _ := io.ReadAll(res.Body)
 	if res.StatusCode >= 400 {
-		return nil, fmt.Errorf("telegram %s http=%d body=%s", method, res.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("telegram %s http=%d body=%s", method, res.StatusCode, sanitizeHTTPErrorBody(body, 300))
 	}
 	return body, nil
+}
+
+func sanitizeHTTPErrorBody(body []byte, maxLen int) string {
+	if maxLen <= 0 {
+		maxLen = 300
+	}
+	s := strings.TrimSpace(string(body))
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > maxLen {
+		return s[:maxLen] + "...(truncated)"
+	}
+	if s == "" {
+		return "n/a"
+	}
+	return s
 }
 
 func safeSend(n *TelegramNotifier, text string, markup any) {

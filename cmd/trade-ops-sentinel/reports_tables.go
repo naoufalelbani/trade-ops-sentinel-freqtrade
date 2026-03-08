@@ -11,10 +11,10 @@ import (
 
 func formatTradesTable(label string, trades []myTrade, cfg Config, bnbPrice float64, displayCurrency string) string {
 	type group struct {
-		Symbol  string
-		Trades  int
-		BuyVal  float64
-		SellVal float64
+		Symbol   string
+		Trades   int
+		BuyVal   float64
+		SellVal  float64
 		FeeQuote float64
 		PnLQuote float64
 	}
@@ -99,10 +99,10 @@ func formatTradesTable(label string, trades []myTrade, cfg Config, bnbPrice floa
 
 func formatFreqtradeTradesGroupedTable(label string, trades []freqtradeTrade, since time.Time, cfg Config, displayCurrency string, bnbPrice float64) string {
 	type group struct {
-		Symbol  string
-		Trades  int
-		BuyVal  float64
-		SellVal float64
+		Symbol   string
+		Trades   int
+		BuyVal   float64
+		SellVal  float64
 		FeeQuote float64
 		PnLQuote float64
 	}
@@ -233,4 +233,3 @@ func fmtCompactNum(raw string, wholeDigits int, fracDigits int) string {
 	}
 	return s
 }
-

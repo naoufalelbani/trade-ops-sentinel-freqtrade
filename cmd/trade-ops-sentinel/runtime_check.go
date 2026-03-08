@@ -1,12 +1,12 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/services"
 	"context"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
+	"trade-ops-sentinel/internal/services"
 )
 
 func runCheck(ctx context.Context, cfg Config, binance *BinanceClient, notifier *TelegramNotifier, state *MonitorState) error {

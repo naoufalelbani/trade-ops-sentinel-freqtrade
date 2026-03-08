@@ -8,10 +8,22 @@ import (
 	"strings"
 )
 
-func BuildLineChartURL(title string, labels []string, values []float64, unit string) string {
+func chartDimensions(size string) (int, int) {
+	switch strings.ToLower(strings.TrimSpace(size)) {
+	case "compact":
+		return 800, 420
+	case "wide":
+		return 1280, 600
+	default:
+		return 1000, 500
+	}
+}
+
+func BuildLineChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
 	if len(labels) == 0 {
 		return ""
 	}
+	dark := strings.EqualFold(strings.TrimSpace(theme), "dark")
 	isPnL := strings.Contains(strings.ToUpper(title), "PNL")
 	chartType := "line"
 	lineColor := "#14b8a6"
@@ -38,6 +50,22 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit str
 	}
 	datasets = append(datasets, dataset)
 
+	bgColor := "white"
+	titleColor := "#111827"
+	legendColor := "#111827"
+	tickColor := "#374151"
+	gridColor := "rgba(0,0,0,0.06)"
+	if dark {
+		bgColor = "%23000000"
+		titleColor = "#ffffff"
+		legendColor = "#e5e7eb"
+		tickColor = "#d1d5db"
+		gridColor = "rgba(255,255,255,0.10)"
+	}
+	width, height := chartDimensions(size)
+
+	xGrid := map[string]any{"display": showGrid, "color": gridColor}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor}
 	cfg := map[string]any{
 		"type": chartType,
 		"data": map[string]any{
@@ -51,10 +79,10 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit str
 				},
 			},
 			"plugins": map[string]any{
-				"legend": map[string]any{"display": true, "position": "top"},
-				"title":  map[string]any{"display": true, "text": title},
+				"legend": map[string]any{"display": true, "position": "top", "labels": map[string]any{"color": legendColor}},
+				"title":  map[string]any{"display": true, "text": title, "color": titleColor},
 				"datalabels": map[string]any{
-					"display":   false,
+					"display":   showLabels,
 					"anchor":    "end",
 					"align":     "end",
 					"offset":    2,
@@ -69,25 +97,27 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit str
 						"maxTicksLimit": 8,
 						"maxRotation":   0,
 						"minRotation":   0,
+						"color":         tickColor,
 					},
-					"grid": map[string]any{"color": "rgba(0,0,0,0.06)"},
+					"grid": xGrid,
 				},
 				"y": map[string]any{
-					"ticks": map[string]any{"maxTicksLimit": 6},
-					"grid":  map[string]any{"color": "rgba(0,0,0,0.06)"},
+					"ticks": map[string]any{"maxTicksLimit": 6, "color": tickColor},
+					"grid":  yGrid,
 				},
 			},
 		},
 	}
 	b, _ := json.Marshal(cfg)
 	q := url.QueryEscape(string(b))
-	return "https://quickchart.io/chart?backgroundColor=white&width=1000&height=500&c=" + q
+	return fmt.Sprintf("https://quickchart.io/chart?backgroundColor=%s&width=%d&height=%d&c=%s", bgColor, width, height, q)
 }
 
-func BuildCumulativeProfitChartURL(title string, labels []string, values []float64, unit string) string {
+func BuildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
 	if len(labels) == 0 {
 		return ""
 	}
+	dark := strings.EqualFold(strings.TrimSpace(theme), "dark")
 	points := make([]map[string]any, 0, len(values))
 	labelAlign := make([]string, 0, len(values))
 	labelColors := make([]string, 0, len(values))
@@ -110,30 +140,49 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 		labelAlign = append(labelAlign, align)
 		labelColors = append(labelColors, color)
 	}
+	titleColor := "#ffffff"
+	legendColor := "#e5e7eb"
+	tickColor := "#d1d5db"
+	gridColor := "rgba(255,255,255,0.10)"
+	lineColor := "#d9d9d9"
+	fillColor := "rgba(217,217,217,0.18)"
+	bgColor := "%23000000"
+	if !dark {
+		titleColor = "#111827"
+		legendColor = "#111827"
+		tickColor = "#374151"
+		gridColor = "rgba(0,0,0,0.06)"
+		lineColor = "#334155"
+		fillColor = "rgba(51,65,85,0.18)"
+		bgColor = "white"
+	}
+	width, height := chartDimensions(size)
+	xGrid := map[string]any{"display": showGrid, "color": gridColor}
+	yGrid := map[string]any{"display": showGrid, "color": gridColor}
 	cfg := map[string]any{
 		"type": "line",
 		"data": map[string]any{
 			"labels": labels,
 			"datasets": []map[string]any{{
 				"label": "Profit", "data": points,
-				"borderColor": "#d9d9d9", "backgroundColor": "rgba(217,217,217,0.18)",
-				"pointRadius": 3, "pointHoverRadius": 4, "pointBackgroundColor": "#d9d9d9",
+				"borderColor": lineColor, "backgroundColor": fillColor,
+				"pointRadius": 3, "pointHoverRadius": 4, "pointBackgroundColor": lineColor,
 				"fill": false, "stepped": true, "tension": 0, "borderWidth": 2,
 			}},
 		},
 		"options": map[string]any{
 			"plugins": map[string]any{
-				"title": map[string]any{"display": true, "text": title, "color": "#ffffff", "font": map[string]any{"size": 20}},
-				"legend": map[string]any{"display": true, "labels": map[string]any{"color": "#e5e7eb"}},
-				"datalabels": map[string]any{"display": true, "align": labelAlign, "anchor": "end", "offset": 4, "font": map[string]any{"size": 10, "weight": "bold"}, "color": labelColors},
+				"title":      map[string]any{"display": true, "text": title, "color": titleColor, "font": map[string]any{"size": 20}},
+				"legend":     map[string]any{"display": true, "labels": map[string]any{"color": legendColor}},
+				"datalabels": map[string]any{"display": showLabels, "align": labelAlign, "anchor": "end", "offset": 4, "font": map[string]any{"size": 10, "weight": "bold"}, "color": labelColors},
 			},
 			"scales": map[string]any{
-				"x": map[string]any{"ticks": map[string]any{"color": "#d1d5db", "maxTicksLimit": 8}, "grid": map[string]any{"color": "rgba(255,255,255,0.10)"}, "title": map[string]any{"display": false}},
-				"y": map[string]any{"ticks": map[string]any{"color": "#d1d5db"}, "grid": map[string]any{"color": "rgba(255,255,255,0.10)"}, "title": map[string]any{"display": true, "text": unit, "color": "#d1d5db"}},
+				"x": map[string]any{"ticks": map[string]any{"color": tickColor, "maxTicksLimit": 8}, "grid": xGrid, "title": map[string]any{"display": false}},
+				"y": map[string]any{"ticks": map[string]any{"color": tickColor}, "grid": yGrid, "title": map[string]any{"display": true, "text": unit, "color": tickColor}},
 			},
 		},
 	}
 	b, _ := json.Marshal(cfg)
 	q := url.QueryEscape(string(b))
-	return "https://quickchart.io/chart?backgroundColor=%23000000&width=1000&height=500&c=" + q
+	return fmt.Sprintf("https://quickchart.io/chart?backgroundColor=%s&width=%d&height=%d&c=%s", bgColor, width, height, q)
 }

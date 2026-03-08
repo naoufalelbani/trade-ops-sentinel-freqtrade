@@ -1,8 +1,6 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/services"
-	"trade-ops-sentinel/internal/infra/worldtime"
 	"context"
 	"fmt"
 	"log"
@@ -10,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"trade-ops-sentinel/internal/infra/worldtime"
+	"trade-ops-sentinel/internal/services"
 )
 
 func dailyReportLoop(ctx context.Context, cfg Config, binance *BinanceClient, notifier *TelegramNotifier, state *MonitorState) {
@@ -75,24 +75,28 @@ func sendDailyReport(ctx context.Context, cfg Config, binance *BinanceClient, no
 	if mode == "digest" {
 		return nil
 	}
+	chartTheme := state.getChartTheme("dark")
+	chartSize := state.getChartSize("standard")
+	chartLabels := state.getChartLabelsEnabled(true)
+	chartGrid := state.getChartGridEnabled(true)
 
 	feeLabels, feeVals, err := feeSeriesLastNDaysCached(ctx, binance, cfg.TrackedSymbols, cfg.BNBAsset, 30)
 	if err != nil {
 		log.Printf("daily fee chart generation error: %v", err)
 	} else if len(feeLabels) > 0 {
-		chartURL := buildLineChartURL("BNB Fees (Last 30 Days)", feeLabels, feeVals, cfg.BNBAsset)
+		chartURL := buildLineChartURL("BNB Fees (Last 30 Days)", feeLabels, feeVals, cfg.BNBAsset, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhoto(notifier, chartURL, "Daily Report: Fees (30d)")
 	}
 
 	portLabels, portVals := state.portfolioSeriesLastNDays(30)
 	if len(portLabels) > 0 {
-		chartURL := buildLineChartURL("Portfolio Value (Last 30 Days)", portLabels, portVals, cfg.QuoteAsset)
+		chartURL := buildLineChartURL("Portfolio Value (Last 30 Days)", portLabels, portVals, cfg.QuoteAsset, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhoto(notifier, chartURL, "Daily Report: Portfolio (30d)")
 	}
 
 	pnlLabels, pnlVals := state.pnlSeriesLastNDays(30)
 	if len(pnlLabels) > 0 {
-		chartURL := buildLineChartURL("PnL Delta (Last 30 Days)", pnlLabels, pnlVals, cfg.QuoteAsset)
+		chartURL := buildLineChartURL("PnL Delta (Last 30 Days)", pnlLabels, pnlVals, cfg.QuoteAsset, chartTheme, chartSize, chartLabels, chartGrid)
 		safeSendPhoto(notifier, chartURL, "Daily Report: PnL Delta (30d)")
 	}
 	return nil
@@ -107,6 +111,10 @@ func sendPeriodReport(ctx context.Context, cfg Config, binance *BinanceClient, n
 		return err
 	}
 	if cfg.FreqtradeHistoryMode {
+		chartTheme := state.getChartTheme("dark")
+		chartSize := state.getChartSize("standard")
+		chartLabels := state.getChartLabelsEnabled(true)
+		chartGrid := state.getChartGridEnabled(true)
 		trades, err := getFreqtradeTrades30dCached(ctx, cfg)
 		if err != nil {
 			logIfErr("period.freqtrade.fetch_trades", err)
@@ -128,11 +136,11 @@ func sendPeriodReport(ctx context.Context, cfg Config, binance *BinanceClient, n
 			pnlLabels, pnlVals = freqtradePnlSeriesByDay(trades, 30)
 		}
 		if len(feeLabels) > 0 {
-			chartURL := buildLineChartURL(fmt.Sprintf("Fees (%s)", strings.Title(label)), feeLabels, feeVals, cfg.BNBAsset)
+			chartURL := buildLineChartURL(fmt.Sprintf("Fees (%s)", strings.Title(label)), feeLabels, feeVals, cfg.BNBAsset, chartTheme, chartSize, chartLabels, chartGrid)
 			safeSendPhoto(notifier, chartURL, fmt.Sprintf("Fees chart (%s)", label))
 		}
 		if len(pnlLabels) > 0 {
-			chartURL := buildLineChartURL(fmt.Sprintf("PnL (%s)", strings.Title(label)), pnlLabels, pnlVals, cfg.QuoteAsset)
+			chartURL := buildLineChartURL(fmt.Sprintf("PnL (%s)", strings.Title(label)), pnlLabels, pnlVals, cfg.QuoteAsset, chartTheme, chartSize, chartLabels, chartGrid)
 			safeSendPhoto(notifier, chartURL, fmt.Sprintf("PnL chart (%s)", label))
 		}
 	}

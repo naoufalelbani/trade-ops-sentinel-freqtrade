@@ -48,7 +48,7 @@ func pingHeartbeatURL(ctx context.Context, rawURL string) error {
 	defer res.Body.Close()
 	if res.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 512))
-		return fmt.Errorf("heartbeat ping http=%d body=%s", res.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("heartbeat ping http=%d body=%s", res.StatusCode, sanitizeHTTPErrorBody(body, 200))
 	}
 	return nil
 }

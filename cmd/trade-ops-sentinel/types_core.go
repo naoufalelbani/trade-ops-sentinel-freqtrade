@@ -1,11 +1,11 @@
 package main
 
 import (
-	"trade-ops-sentinel/internal/domain"
 	"database/sql"
 	"net/http"
 	"sync"
 	"time"
+	"trade-ops-sentinel/internal/domain"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -55,6 +55,7 @@ type Config struct {
 	FeeMainCurrency     string
 
 	HeartbeatEnabled       bool
+	HeartbeatAlertEnabled  bool
 	HeartbeatStaleAfter    time.Duration
 	HeartbeatCheckInterval time.Duration
 	HeartbeatPingURL       string
@@ -97,29 +98,45 @@ type RefillEvent = domain.RefillEvent
 type rangeRecord = domain.RangeRecord
 
 type persistState struct {
-	Checks       int           `json:"checks"`
-	StartCount   int           `json:"start_count"`
-	LastBuyAt    int64         `json:"last_buy_at"`
-	Snapshots    []Snapshot    `json:"snapshots"`
-	RefillEvents []RefillEvent `json:"refill_events"`
-	FeeCurrency  string        `json:"fee_currency"`
-	CustomCumWin []string      `json:"custom_cum_windows,omitempty"`
-	CustomRanges []rangeRecord `json:"custom_ranges,omitempty"`
-	LastUpdated  int64         `json:"last_updated"`
+	Checks                  int           `json:"checks"`
+	StartCount              int           `json:"start_count"`
+	LastBuyAt               int64         `json:"last_buy_at"`
+	Snapshots               []Snapshot    `json:"snapshots"`
+	RefillEvents            []RefillEvent `json:"refill_events"`
+	FeeCurrency             string        `json:"fee_currency"`
+	ChartTheme              string        `json:"chart_theme,omitempty"`
+	ChartSize               string        `json:"chart_size,omitempty"`
+	ChartLabelsEnabled      *bool         `json:"chart_labels_enabled,omitempty"`
+	ChartGridEnabled        *bool         `json:"chart_grid_enabled,omitempty"`
+	HeartbeatAlertsEnabled  *bool         `json:"heartbeat_alerts_enabled,omitempty"`
+	APIFailureAlertsEnabled *bool         `json:"api_failure_alerts_enabled,omitempty"`
+	CustomCumWin            []string      `json:"custom_cum_windows,omitempty"`
+	CustomRanges            []rangeRecord `json:"custom_ranges,omitempty"`
+	LastUpdated             int64         `json:"last_updated"`
 }
 
 type MonitorState struct {
-	mu           sync.Mutex
-	checks       int
-	startCount   int
-	lastBuyAt    time.Time
-	snapshots    []Snapshot
-	refillEvents []RefillEvent
-	feeCurrency  string
-	customCumWin []string
-	customRanges []rangeRecord
-	stateFile    string
-	maxSnapshots int
+	mu                         sync.Mutex
+	checks                     int
+	startCount                 int
+	lastBuyAt                  time.Time
+	snapshots                  []Snapshot
+	refillEvents               []RefillEvent
+	feeCurrency                string
+	chartTheme                 string
+	chartSize                  string
+	chartLabelsEnabled         bool
+	hasChartLabelsEnabled      bool
+	chartGridEnabled           bool
+	hasChartGridEnabled        bool
+	heartbeatAlertsEnabled     bool
+	hasHeartbeatAlertsEnabled  bool
+	apiFailureAlertsEnabled    bool
+	hasAPIFailureAlertsEnabled bool
+	customCumWin               []string
+	customRanges               []rangeRecord
+	stateFile                  string
+	maxSnapshots               int
 }
 
 type BinanceClient struct {
