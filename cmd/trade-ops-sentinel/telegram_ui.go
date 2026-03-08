@@ -72,7 +72,8 @@ func customCumProfitWindowKeyboard() *inlineKeyboardMarkup {
 func customCumProfitGranularityKeyboard(windowToken string) *inlineKeyboardMarkup {
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Hours", CallbackData: "ccpg_" + windowToken + "_h"}, {Text: "Days", CallbackData: "ccpg_" + windowToken + "_d"}, {Text: "Auto", CallbackData: "ccpg_" + windowToken + "_a"}},
+			{{Text: "Minutes", CallbackData: "ccpg_" + windowToken + "_m"}, {Text: "Hours", CallbackData: "ccpg_" + windowToken + "_h"}, {Text: "Days", CallbackData: "ccpg_" + windowToken + "_d"}},
+			{{Text: "Trades", CallbackData: "ccpg_" + windowToken + "_t"}, {Text: "Auto", CallbackData: "ccpg_" + windowToken + "_a"}},
 			{{Text: "Window", CallbackData: "chart_cum_profit_custom"}, {Text: "Back", CallbackData: "menu_charts"}},
 		},
 	}
@@ -124,7 +125,8 @@ func customCumProfitRangeGranularityKeyboard(fromToken, toToken string) *inlineK
 	prefix := "cprg_" + fromToken + "_" + toToken + "_"
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Hours", CallbackData: prefix + "h"}, {Text: "Days", CallbackData: prefix + "d"}, {Text: "Auto", CallbackData: prefix + "a"}},
+			{{Text: "Minutes", CallbackData: prefix + "m"}, {Text: "Hours", CallbackData: prefix + "h"}, {Text: "Days", CallbackData: prefix + "d"}},
+			{{Text: "Trades", CallbackData: prefix + "t"}, {Text: "Auto", CallbackData: prefix + "a"}},
 			{{Text: "To", CallbackData: "cprf_" + fromToken}, {Text: "Back", CallbackData: "menu_charts"}},
 		},
 	}
@@ -134,7 +136,8 @@ func customCumProfitDateRangeGranularityKeyboard(fromTS, toTS int64) *inlineKeyb
 	prefix := fmt.Sprintf("cpdtg_%d_%d_", fromTS, toTS)
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Hours", CallbackData: prefix + "h"}, {Text: "Days", CallbackData: prefix + "d"}, {Text: "Auto", CallbackData: prefix + "a"}},
+			{{Text: "Minutes", CallbackData: prefix + "m"}, {Text: "Hours", CallbackData: prefix + "h"}, {Text: "Days", CallbackData: prefix + "d"}},
+			{{Text: "Trades", CallbackData: prefix + "t"}, {Text: "Auto", CallbackData: prefix + "a"}},
 			{{Text: "New Date Range", CallbackData: "chart_cum_profit_date_range"}, {Text: "Back", CallbackData: "menu_charts"}},
 		},
 	}
@@ -146,6 +149,19 @@ func customCumProfitDateRangeEntryKeyboard() *inlineKeyboardMarkup {
 			{{Text: "Type Manually", CallbackData: "chart_cum_profit_date_range_manual"}},
 			{{Text: "Open Calendar", CallbackData: "chart_cum_profit_calendar_range"}},
 			{{Text: "Range History", CallbackData: "chart_cum_profit_range_history"}},
+			{{Text: "Back", CallbackData: "menu_charts"}},
+		},
+	}
+}
+
+func chartRefreshKeyboard(action string) *inlineKeyboardMarkup {
+	refreshAction := strings.TrimSpace(action)
+	if refreshAction == "" {
+		refreshAction = "menu_charts"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Refresh", CallbackData: "refresh_" + refreshAction}},
 			{{Text: "Back", CallbackData: "menu_charts"}},
 		},
 	}
@@ -256,6 +272,7 @@ func settingsKeyboard() *inlineKeyboardMarkup {
 			{{Text: "Chart Size", CallbackData: "chart_size_menu"}},
 			{{Text: "Chart Labels", CallbackData: "chart_labels_menu"}},
 			{{Text: "Chart Grid", CallbackData: "chart_grid_menu"}},
+			{{Text: "PnL Emojis", CallbackData: "pnl_emoji_menu"}},
 			{{Text: "Alert Settings", CallbackData: "alerts_menu"}},
 			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
 			{{Text: "Freqtrade Health", CallbackData: "freqtrade_health"}},
@@ -368,6 +385,20 @@ func chartGridKeyboard(enabled bool) *inlineKeyboardMarkup {
 	}
 }
 
+func pnlEmojiKeyboard(enabled bool) *inlineKeyboardMarkup {
+	label := "Current: OFF"
+	if enabled {
+		label = "Current: ON"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Emojis ON", CallbackData: "pnl_emoji_on"}, {Text: "Emojis OFF", CallbackData: "pnl_emoji_off"}},
+			{{Text: label, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
 func helpText() string {
 	return strings.Join([]string{
 		"Trade Ops Sentinel - Help",
@@ -383,7 +414,7 @@ func helpText() string {
 		"Actions: Refill Now, Force Buy BNB, Daily Report Now",
 		"Reports: day/week/month for Report, Fees, PnL, Trades, Leaders, plus PnL 7d table",
 		"Charts: fees, pnl, cumulative fees/profit, custom windows, range tools",
-		"Settings: currency, chart theme/size/labels/grid, alert toggles, Freqtrade Health",
+		"Settings: currency, chart theme/size/labels/grid, pnl emojis, alert toggles, Freqtrade Health",
 		"",
 		"Chart options:",
 		"Cum Profit presets: 24h, 48h, 72h, 7d, 30d",
@@ -393,7 +424,7 @@ func helpText() string {
 		"Range Date&Hour: exact UTC datetime input for from/to",
 		"Calendar Range: pick FROM/TO date via calendar + hour buttons",
 		"Range History: re-use last 5 saved ranges",
-		"Timeline mode: Hours / Days / Auto",
+		"Timeline mode: Minutes / Hours / Days / Trades / Auto",
 		"",
 		"Date/time format (manual range):",
 		"Use UTC. Accepted: YYYY-MM-DD HH:MM, YYYY-MM-DD HH, YYYY-MM-DD",

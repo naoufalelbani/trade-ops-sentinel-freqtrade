@@ -33,6 +33,8 @@ func cumulativeProfitSeriesWindowMode(ctx context.Context, cfg Config, state *Mo
 		hours = 24
 	}
 	modeNorm := strings.ToLower(strings.TrimSpace(mode))
+	minutesMode := modeNorm == "minutes"
+	tradesMode := modeNorm == "trades"
 	hoursMode := d <= 7*24*time.Hour
 	if modeNorm == "hours" {
 		hoursMode = true
@@ -46,7 +48,15 @@ func cumulativeProfitSeriesWindowMode(ctx context.Context, cfg Config, state *Mo
 		}
 		var labels []string
 		var series []float64
-		if hoursMode {
+		if tradesMode {
+			labels, series = freqtradePnlSeriesByTradeWindow(trades, d)
+		} else if minutesMode {
+			minutes := int(d / time.Minute)
+			if minutes <= 0 {
+				minutes = 60
+			}
+			labels, series = freqtradePnlSeriesByMinuteActive(trades, minutes)
+		} else if hoursMode {
 			labels, series = freqtradePnlSeriesByHourActive(trades, hours)
 		} else {
 			days := int(d / (24 * time.Hour))
@@ -55,6 +65,17 @@ func cumulativeProfitSeriesWindowMode(ctx context.Context, cfg Config, state *Mo
 		return cumulativeDisplaySeries(labels, series), cumulativeDisplayValues(series, cfg, displayCurrency, spot), unit
 	}
 
+	if tradesMode {
+		return nil, nil, unit
+	}
+	if minutesMode {
+		minutes := int(d / time.Minute)
+		if minutes <= 0 {
+			minutes = 60
+		}
+		labels, series := state.pnlSeriesLastNMinutes(minutes)
+		return cumulativeDisplaySeries(labels, series), cumulativeDisplayValues(series, cfg, displayCurrency, spot), unit
+	}
 	if hoursMode {
 		labels, series := state.pnlSeriesLastNHours(hours)
 		return cumulativeDisplaySeries(labels, series), cumulativeDisplayValues(series, cfg, displayCurrency, spot), unit
@@ -103,6 +124,8 @@ func cumulativeProfitSeriesBetweenMode(ctx context.Context, cfg Config, state *M
 		unit = cfg.BNBAsset
 	}
 	modeNorm := strings.ToLower(strings.TrimSpace(mode))
+	minutesMode := modeNorm == "minutes"
+	tradesMode := modeNorm == "trades"
 	hoursMode := end.Sub(start) <= 7*24*time.Hour
 	if modeNorm == "hours" {
 		hoursMode = true
@@ -117,13 +140,22 @@ func cumulativeProfitSeriesBetweenMode(ctx context.Context, cfg Config, state *M
 		if err != nil {
 			return nil, nil, unit
 		}
-		if hoursMode {
+		if tradesMode {
+			labels, series = freqtradePnlSeriesByTradeRange(trades, start, end)
+		} else if minutesMode {
+			labels, series = freqtradePnlSeriesByMinuteRangeActive(trades, start, end)
+		} else if hoursMode {
 			labels, series = freqtradePnlSeriesByHourRangeActive(trades, start, end)
 		} else {
 			labels, series = freqtradePnlSeriesByDayRangeActive(trades, start, end)
 		}
 	} else {
-		if hoursMode {
+		if tradesMode {
+			return nil, nil, unit
+		}
+		if minutesMode {
+			labels, series = state.pnlSeriesByMinuteRangeActive(start, end)
+		} else if hoursMode {
 			labels, series = state.pnlSeriesByHourRangeActive(start, end)
 		} else {
 			labels, series = state.pnlSeriesByDayRangeActive(start, end)
@@ -245,6 +277,105 @@ func freqtradePnlSeriesByHourRangeActive(trades []freqtradeTrade, start, end tim
 	for _, k := range keys {
 		labels = append(labels, k.Format("01-02 15:00"))
 		values = append(values, buckets[k])
+	}
+	return labels, values
+}
+
+func freqtradePnlSeriesByMinuteActive(trades []freqtradeTrade, minutes int) ([]string, []float64) {
+	now := time.Now().UTC().Truncate(time.Minute)
+	start := now.Add(-time.Duration(minutes-1) * time.Minute)
+	buckets := map[string]float64{}
+	active := map[string]bool{}
+	for _, tr := range trades {
+		if tr.CloseTimestamp < start.UnixMilli() {
+			continue
+		}
+		k := time.UnixMilli(tr.CloseTimestamp).UTC().Truncate(time.Minute).Format("01-02 15:04")
+		active[k] = true
+		buckets[k] += tr.ProfitAbs
+	}
+	labels := make([]string, 0, minutes)
+	values := make([]float64, 0, minutes)
+	for i := minutes - 1; i >= 0; i-- {
+		k := now.Add(-time.Duration(i) * time.Minute).Format("01-02 15:04")
+		if !active[k] {
+			continue
+		}
+		labels = append(labels, k)
+		values = append(values, buckets[k])
+	}
+	return labels, values
+}
+
+func freqtradePnlSeriesByMinuteRangeActive(trades []freqtradeTrade, start, end time.Time) ([]string, []float64) {
+	startMS := start.UnixMilli()
+	endMS := end.UnixMilli()
+	buckets := map[time.Time]float64{}
+	for _, tr := range trades {
+		ts := tr.CloseTimestamp
+		if ts < startMS || ts > endMS {
+			continue
+		}
+		k := time.UnixMilli(ts).UTC().Truncate(time.Minute)
+		buckets[k] += tr.ProfitAbs
+	}
+	if len(buckets) == 0 {
+		return nil, nil
+	}
+	keys := make([]time.Time, 0, len(buckets))
+	for k := range buckets {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].Before(keys[j]) })
+	labels := make([]string, 0, len(keys))
+	values := make([]float64, 0, len(keys))
+	for _, k := range keys {
+		labels = append(labels, k.Format("01-02 15:04"))
+		values = append(values, buckets[k])
+	}
+	return labels, values
+}
+
+func freqtradePnlSeriesByTradeWindow(trades []freqtradeTrade, d time.Duration) ([]string, []float64) {
+	start := time.Now().UTC().Add(-d)
+	end := time.Now().UTC()
+	return freqtradePnlSeriesByTradeRange(trades, start, end)
+}
+
+func freqtradePnlSeriesByTradeRange(trades []freqtradeTrade, start, end time.Time) ([]string, []float64) {
+	type tradePoint struct {
+		ts  int64
+		id  int64
+		pnl float64
+	}
+	startMS := start.UnixMilli()
+	endMS := end.UnixMilli()
+	points := make([]tradePoint, 0, len(trades))
+	for _, tr := range trades {
+		ts := tr.CloseTimestamp
+		if ts <= 0 || ts < startMS || ts > endMS {
+			continue
+		}
+		points = append(points, tradePoint{ts: ts, id: tr.TradeID, pnl: tr.ProfitAbs})
+	}
+	if len(points) == 0 {
+		return nil, nil
+	}
+	sort.Slice(points, func(i, j int) bool {
+		if points[i].ts == points[j].ts {
+			return points[i].id < points[j].id
+		}
+		return points[i].ts < points[j].ts
+	})
+	const maxPoints = 500
+	if len(points) > maxPoints {
+		points = points[len(points)-maxPoints:]
+	}
+	labels := make([]string, 0, len(points))
+	values := make([]float64, 0, len(points))
+	for i, p := range points {
+		labels = append(labels, "T"+strconv.Itoa(i+1))
+		values = append(values, p.pnl)
 	}
 	return labels, values
 }

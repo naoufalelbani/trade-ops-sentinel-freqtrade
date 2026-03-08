@@ -108,6 +108,7 @@ type persistState struct {
 	ChartSize               string        `json:"chart_size,omitempty"`
 	ChartLabelsEnabled      *bool         `json:"chart_labels_enabled,omitempty"`
 	ChartGridEnabled        *bool         `json:"chart_grid_enabled,omitempty"`
+	PnLEmojisEnabled        *bool         `json:"pnl_emojis_enabled,omitempty"`
 	HeartbeatAlertsEnabled  *bool         `json:"heartbeat_alerts_enabled,omitempty"`
 	APIFailureAlertsEnabled *bool         `json:"api_failure_alerts_enabled,omitempty"`
 	CustomCumWin            []string      `json:"custom_cum_windows,omitempty"`
@@ -129,6 +130,8 @@ type MonitorState struct {
 	hasChartLabelsEnabled      bool
 	chartGridEnabled           bool
 	hasChartGridEnabled        bool
+	pnlEmojisEnabled           bool
+	hasPnLEmojisEnabled        bool
 	heartbeatAlertsEnabled     bool
 	hasHeartbeatAlertsEnabled  bool
 	apiFailureAlertsEnabled    bool

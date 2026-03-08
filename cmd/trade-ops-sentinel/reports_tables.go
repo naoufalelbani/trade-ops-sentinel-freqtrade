@@ -114,6 +114,10 @@ func formatFreqtradeTradesGroupedTable(label string, trades []freqtradeTrade, si
 		if symbol == "" {
 			continue
 		}
+		include := (tr.OpenTimestamp >= sinceMS) || (tr.CloseTimestamp > 0 && tr.CloseTimestamp >= sinceMS)
+		if !include {
+			continue
+		}
 		g := groups[symbol]
 		if g == nil {
 			g = &group{Symbol: symbol}

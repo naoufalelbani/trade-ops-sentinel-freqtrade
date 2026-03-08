@@ -189,6 +189,22 @@ func (s *MonitorState) setChartGridEnabled(v bool) {
 	s.hasChartGridEnabled = true
 }
 
+func (s *MonitorState) getPnLEmojisEnabled(defaultVal bool) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.hasPnLEmojisEnabled {
+		return s.pnlEmojisEnabled
+	}
+	return defaultVal
+}
+
+func (s *MonitorState) setPnLEmojisEnabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pnlEmojisEnabled = v
+	s.hasPnLEmojisEnabled = true
+}
+
 func (s *MonitorState) getHeartbeatAlertsEnabled(defaultVal bool) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -227,6 +243,7 @@ func (s *MonitorState) settingsSummary(cfg Config, alerts *alertManager) string 
 	chartSize := strings.Title(s.getChartSize("standard"))
 	chartLabelsEnabled := s.getChartLabelsEnabled(true)
 	chartGridEnabled := s.getChartGridEnabled(true)
+	pnlEmojisEnabled := s.getPnLEmojisEnabled(true)
 	heartbeatEnabled := cfg.HeartbeatAlertEnabled
 	apiEnabled := cfg.APIFailureAlertEnabled
 	if alerts != nil {
@@ -243,6 +260,7 @@ func (s *MonitorState) settingsSummary(cfg Config, alerts *alertManager) string 
 		fmt.Sprintf("Chart size=%s", chartSize),
 		fmt.Sprintf("Chart labels=%t", chartLabelsEnabled),
 		fmt.Sprintf("Chart grid=%t", chartGridEnabled),
+		fmt.Sprintf("PnL emojis=%t", pnlEmojisEnabled),
 		fmt.Sprintf("Heartbeat alerts=%t", heartbeatEnabled),
 		fmt.Sprintf("API failure alerts=%t", apiEnabled),
 	}, "\n")
@@ -478,6 +496,85 @@ func (s *MonitorState) pnlSeriesLastNHours(hours int) ([]string, []float64) {
 	return labels, values
 }
 
+func (s *MonitorState) pnlSeriesLastNMinutes(minutes int) ([]string, []float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.snapshots) < 2 {
+		return nil, nil
+	}
+	buckets := map[string]Snapshot{}
+	for _, sn := range s.snapshots {
+		k := time.UnixMilli(sn.TS).UTC().Truncate(time.Minute).Format("01-02 15:04")
+		prev, ok := buckets[k]
+		if !ok || sn.TS > prev.TS {
+			buckets[k] = sn
+		}
+	}
+	now := time.Now().UTC().Truncate(time.Minute)
+	labels := make([]string, 0, minutes)
+	values := make([]float64, 0, minutes)
+	var prev *Snapshot
+	for i := minutes - 1; i >= 0; i-- {
+		k := now.Add(-time.Duration(i) * time.Minute).Format("01-02 15:04")
+		sn, ok := buckets[k]
+		if !ok {
+			continue
+		}
+		labels = append(labels, k)
+		if prev == nil {
+			values = append(values, 0)
+		} else {
+			values = append(values, sn.PortfolioQuote-prev.PortfolioQuote)
+		}
+		copySN := sn
+		prev = &copySN
+	}
+	return labels, values
+}
+
+func (s *MonitorState) pnlSeriesByMinuteRangeActive(start, end time.Time) ([]string, []float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.snapshots) < 2 {
+		return nil, nil
+	}
+	buckets := map[time.Time]Snapshot{}
+	for _, sn := range s.snapshots {
+		t := time.UnixMilli(sn.TS).UTC()
+		if t.Before(start) || t.After(end) {
+			continue
+		}
+		k := t.Truncate(time.Minute)
+		prev, ok := buckets[k]
+		if !ok || sn.TS > prev.TS {
+			buckets[k] = sn
+		}
+	}
+	if len(buckets) == 0 {
+		return nil, nil
+	}
+	keys := make([]time.Time, 0, len(buckets))
+	for k := range buckets {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].Before(keys[j]) })
+	labels := make([]string, 0, len(keys))
+	values := make([]float64, 0, len(keys))
+	var prev *Snapshot
+	for _, k := range keys {
+		sn := buckets[k]
+		labels = append(labels, k.Format("01-02 15:04"))
+		if prev == nil {
+			values = append(values, 0)
+		} else {
+			values = append(values, sn.PortfolioQuote-prev.PortfolioQuote)
+		}
+		copySN := sn
+		prev = &copySN
+	}
+	return labels, values
+}
+
 func (s *MonitorState) pnlSeriesByHourRangeActive(start, end time.Time) ([]string, []float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -627,6 +724,10 @@ func (s *MonitorState) save() error {
 		v := s.chartGridEnabled
 		p.ChartGridEnabled = &v
 	}
+	if s.hasPnLEmojisEnabled {
+		v := s.pnlEmojisEnabled
+		p.PnLEmojisEnabled = &v
+	}
 	if s.hasHeartbeatAlertsEnabled {
 		v := s.heartbeatAlertsEnabled
 		p.HeartbeatAlertsEnabled = &v
@@ -683,6 +784,10 @@ func (s *MonitorState) load() error {
 	if p.ChartGridEnabled != nil {
 		s.hasChartGridEnabled = true
 		s.chartGridEnabled = *p.ChartGridEnabled
+	}
+	if p.PnLEmojisEnabled != nil {
+		s.hasPnLEmojisEnabled = true
+		s.pnlEmojisEnabled = *p.PnLEmojisEnabled
 	}
 	if p.HeartbeatAlertsEnabled != nil {
 		s.hasHeartbeatAlertsEnabled = true

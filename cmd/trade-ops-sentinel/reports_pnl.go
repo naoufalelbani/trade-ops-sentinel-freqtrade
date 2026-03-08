@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+func pnlSignalEmoji(v float64) string {
+	if v > 0 {
+		return "🟢"
+	}
+	if v < 0 {
+		return "🔴"
+	}
+	return "⚪"
+}
+
 func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, days int) (string, error) {
 	rows := state.dailyPnlRows(days)
 	counts := map[string]int{}
@@ -31,6 +41,7 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 	}
 
 	var b strings.Builder
+	showPnLEmojis := state.getPnLEmojisEnabled(true)
 	b.WriteString(fmt.Sprintf("Daily Profit over the last %d days:\n", days))
 	b.WriteString(fmt.Sprintf("%-16s %-18s %-9s\n", "Day (count)", "PnL", "Profit %"))
 	b.WriteString(fmt.Sprintf("%-16s %-18s %-9s\n", "------------", "------------------", "--------"))
@@ -44,8 +55,18 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 			unit = strings.ToUpper(cfg.QuoteAsset)
 		}
 		quoteCell := fmt.Sprintf("%s %s", formatSignedNoPlus(pnlVal, 3), unit)
+		if showPnLEmojis {
+			quoteCell = fmt.Sprintf("%s %s", quoteCell, pnlSignalEmoji(r.PnL))
+		}
 		pctCell := fmt.Sprintf("%s%%", formatSignedNoPlus(r.Pct, 2))
 		b.WriteString(fmt.Sprintf("%-16s %-18s %-9s\n", dayLabel, quoteCell, pctCell))
+	}
+	if cfg.FreqtradeHistoryMode {
+		b.WriteString("profit % = (sell - buy - fee) / buy (closed trades)\n")
+		b.WriteString("note: Freqtrade UI may show a different % when using wallet/equity as denominator.\n")
+	}
+	if showPnLEmojis {
+		b.WriteString("legend: 🟢 gain | 🔴 loss | ⚪ flat\n")
 	}
 	return b.String(), nil
 }
@@ -53,7 +74,9 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 func freqtradeDailyPnlRows(trades []freqtradeTrade, days int) ([]dailyPnlRow, map[string]int) {
 	type agg struct {
 		pnl   float64
-		stake float64
+		buy   float64
+		sell  float64
+		fee   float64
 		count int
 	}
 	now := time.Now().UTC()
@@ -70,8 +93,13 @@ func freqtradeDailyPnlRows(trades []freqtradeTrade, days int) ([]dailyPnlRow, ma
 		}
 		day := t.Format("2006-01-02")
 		a := byDay[day]
-		a.pnl += tr.ProfitAbs
-		a.stake += tr.StakeAmount
+		buy := tr.StakeAmount
+		sell := tr.Amount * tr.CloseRate
+		fee := (buy * tr.FeeOpen) + (sell * tr.FeeClose)
+		a.buy += buy
+		a.sell += sell
+		a.fee += fee
+		a.pnl += sell - buy - fee
 		a.count++
 		byDay[day] = a
 	}
@@ -82,8 +110,8 @@ func freqtradeDailyPnlRows(trades []freqtradeTrade, days int) ([]dailyPnlRow, ma
 		day := now.Add(-time.Duration(i) * 24 * time.Hour).Format("2006-01-02")
 		a := byDay[day]
 		pct := 0.0
-		if a.stake > 0 {
-			pct = (a.pnl / a.stake) * 100
+		if a.buy > 0 {
+			pct = (a.pnl / a.buy) * 100
 		}
 		rows = append(rows, dailyPnlRow{Day: day, PnL: a.pnl, Pct: pct})
 		counts[day] = a.count

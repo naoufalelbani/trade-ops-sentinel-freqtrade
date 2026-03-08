@@ -66,6 +66,10 @@ func isAwaitingCustomCumProfitWindow(chatID int64) bool {
 
 func parseCumProfitGranularity(token string) (string, string) {
 	switch strings.ToLower(strings.TrimSpace(token)) {
+	case "m":
+		return "minutes", "minutes"
+	case "t":
+		return "trades", "trades"
 	case "h":
 		return "hours", "hours"
 	case "d":

@@ -506,27 +506,50 @@ func (t *TelegramNotifier) Send(text string, markup any) error {
 }
 
 func (t *TelegramNotifier) SendToChat(chatID int64, text string, markup any) error {
+	formatted := smartFormatTelegramText(text)
 	payload := map[string]any{
-		"chat_id": chatID,
-		"text":    text,
+		"chat_id":                  chatID,
+		"text":                     formatted,
+		"parse_mode":               "HTML",
+		"disable_web_page_preview": true,
 	}
 	if markup != nil {
 		payload["reply_markup"] = markup
 	}
 	_, err := t.call("sendMessage", payload)
+	if err == nil {
+		return nil
+	}
+	// Fallback to plain message if HTML parse fails for any dynamic text.
+	delete(payload, "parse_mode")
+	payload["text"] = text
+	_, err = t.call("sendMessage", payload)
 	return err
 }
 
 func (t *TelegramNotifier) SendPhotoURL(chatID int64, photoURL, caption string) error {
+	return t.SendPhotoURLWithMarkup(chatID, photoURL, caption, nil)
+}
+
+func (t *TelegramNotifier) SendPhotoURLWithMarkup(chatID int64, photoURL, caption string, markup any) error {
 	if photoURL == "" {
 		return errors.New("empty photo url")
 	}
 	payload := map[string]any{
-		"chat_id": chatID,
-		"photo":   photoURL,
-		"caption": caption,
+		"chat_id":    chatID,
+		"photo":      photoURL,
+		"caption":    caption,
+		"parse_mode": "HTML",
+	}
+	if markup != nil {
+		payload["reply_markup"] = markup
 	}
 	_, err := t.call("sendPhoto", payload)
+	if err == nil {
+		return nil
+	}
+	delete(payload, "parse_mode")
+	_, err = t.call("sendPhoto", payload)
 	return err
 }
 
@@ -624,6 +647,76 @@ func sanitizeHTTPErrorBody(body []byte, maxLen int) string {
 	return s
 }
 
+func smartFormatTelegramText(text string) string {
+	raw := strings.TrimSpace(text)
+	if raw == "" {
+		return text
+	}
+	if containsTelegramHTML(text) {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	firstNonEmpty := -1
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "" {
+			firstNonEmpty = i
+			break
+		}
+	}
+	out := make([]string, 0, len(lines))
+	for i, line := range lines {
+		t := strings.TrimSpace(line)
+		if t == "" {
+			out = append(out, "")
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(t), "note:") || strings.HasPrefix(strings.ToLower(t), "legend:") {
+			out = append(out, "<i>"+html.EscapeString(t)+"</i>")
+			continue
+		}
+		if k, v, ok := splitKV(t, ':'); ok {
+			out = append(out, "<b>"+html.EscapeString(k)+":</b> <i>"+html.EscapeString(v)+"</i>")
+			continue
+		}
+		if k, v, ok := splitKV(t, '='); ok {
+			out = append(out, "<b>"+html.EscapeString(k)+"</b>=<code>"+html.EscapeString(v)+"</code>")
+			continue
+		}
+		if i == firstNonEmpty && len(t) <= 80 {
+			out = append(out, "<b>"+html.EscapeString(t)+"</b>")
+			continue
+		}
+		out = append(out, html.EscapeString(t))
+	}
+	return strings.Join(out, "\n")
+}
+
+func containsTelegramHTML(s string) bool {
+	lower := strings.ToLower(s)
+	for _, tag := range []string{"<b>", "</b>", "<i>", "</i>", "<code>", "</code>", "<pre>", "</pre>", "<a "} {
+		if strings.Contains(lower, tag) {
+			return true
+		}
+	}
+	return false
+}
+
+func splitKV(s string, sep byte) (string, string, bool) {
+	if strings.Contains(s, "://") {
+		return "", "", false
+	}
+	idx := strings.IndexByte(s, sep)
+	if idx <= 0 || idx >= len(s)-1 {
+		return "", "", false
+	}
+	k := strings.TrimSpace(s[:idx])
+	v := strings.TrimSpace(s[idx+1:])
+	if k == "" || v == "" || len(k) > 40 {
+		return "", "", false
+	}
+	return k, v, true
+}
+
 func safeSend(n *TelegramNotifier, text string, markup any) {
 	logIfErr("telegram.send", n.Send(text, markup))
 }
@@ -638,6 +731,10 @@ func safeSendPhoto(n *TelegramNotifier, photoURL, caption string) {
 
 func safeSendPhotoToChat(n *TelegramNotifier, chatID int64, photoURL, caption string) {
 	logIfErr("telegram.send_photo_to_chat", n.SendPhotoURL(chatID, photoURL, caption))
+}
+
+func safeSendPhotoToChatWithMarkup(n *TelegramNotifier, chatID int64, photoURL, caption string, markup any) {
+	logIfErr("telegram.send_photo_to_chat", n.SendPhotoURLWithMarkup(chatID, photoURL, caption, markup))
 }
 
 func safeAnswerCallback(n *TelegramNotifier, callbackID, text string) {

@@ -88,6 +88,8 @@ func main() {
 	state.setChartLabelsEnabled(chartLabelsEnabled)
 	chartGridEnabled := state.getChartGridEnabled(true)
 	state.setChartGridEnabled(chartGridEnabled)
+	pnlEmojisEnabled := state.getPnLEmojisEnabled(true)
+	state.setPnLEmojisEnabled(pnlEmojisEnabled)
 	heartbeatAlertsEnabled := state.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled)
 	apiFailureAlertsEnabled := state.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled)
 	state.setHeartbeatAlertsEnabled(heartbeatAlertsEnabled)
@@ -117,7 +119,7 @@ func main() {
 		restartCount = 0
 	}
 	startup := fmt.Sprintf(
-		"Trade Ops Sentinel started\nVersion=%s\nSymbol=%s\n%s\nTracked symbols=%d\nInterval=%s\nContainer=%s Restarts=%d",
+		"<b>Trade Ops Sentinel started</b>\nVersion=<i>%s</i>\n<b>Symbol</b>=<code>%s</code>\n<i>%s</i>\n<b>Tracked symbols</b>=%d\n<b>Interval</b>=%s\n<b>Container</b>=<code>%s</code> <b>Restarts</b>=%d",
 		versionSummary(),
 		cfg.Symbol,
 		cfg.thresholdModeLine(),

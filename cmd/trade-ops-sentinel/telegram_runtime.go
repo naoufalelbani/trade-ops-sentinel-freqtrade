@@ -157,6 +157,12 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 
 	safeAnswerCallback(notifier, upd.CallbackQuery.ID, "Processing...")
 	data := upd.CallbackQuery.Data
+	if strings.HasPrefix(data, "refresh_") {
+		next := strings.TrimSpace(strings.TrimPrefix(data, "refresh_"))
+		if next != "" {
+			data = next
+		}
+	}
 
 	showSettingsMenu := func(text string) {
 		safeSendToChat(notifier, chatID, text, settingsKeyboard())
@@ -296,6 +302,21 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		_ = state.save()
 		recordSettingChange("chart_grid_enabled", old, "false")
 		showSettingsMenu("Chart grid disabled.")
+	case "pnl_emoji_menu":
+		current := state.getPnLEmojisEnabled(true)
+		safeSendToChat(notifier, chatID, fmt.Sprintf("PnL emojis are currently: %t", current), pnlEmojiKeyboard(current))
+	case "pnl_emoji_on":
+		old := strconv.FormatBool(state.getPnLEmojisEnabled(true))
+		state.setPnLEmojisEnabled(true)
+		_ = state.save()
+		recordSettingChange("pnl_emojis_enabled", old, "true")
+		showSettingsMenu("PnL emojis enabled.")
+	case "pnl_emoji_off":
+		old := strconv.FormatBool(state.getPnLEmojisEnabled(true))
+		state.setPnLEmojisEnabled(false)
+		_ = state.save()
+		recordSettingChange("pnl_emojis_enabled", old, "false")
+		showSettingsMenu("PnL emojis disabled.")
 	case "alerts_menu", "alerts_settings", "alert_settings", "settings_alerts":
 		heartbeatEnabled := cfg.HeartbeatAlertEnabled
 		apiEnabled := cfg.APIFailureAlertEnabled
@@ -506,7 +527,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		}
 		title := fmt.Sprintf("Cumulative Profit (%s)", window)
 		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-		safeSendPhotoToChat(notifier, chatID, chartURL, title)
+		safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(data))
 	case "chart_cum_profit_custom":
 		setAwaitingCustomCumProfitWindow(chatID, true)
 		safeSendToChat(notifier, chatID, "Choose cumulative profit window or type it (example: `36h`, `3d`).", customCumProfitWindowKeyboard())
@@ -580,7 +601,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			}
 			title := fmt.Sprintf("Cumulative Profit (%s, %s)", label, modeLabel)
 			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-			safeSendPhotoToChat(notifier, chatID, chartURL, title)
+			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		case telegramiface.CallbackCalendarIgnore:
 			return
@@ -740,7 +761,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			clearRangeFromSelection(chatID)
 			title := fmt.Sprintf("Cumulative Profit (%s ago -> %s ago, %s)", fromLabel, toLabel, modeLabel)
 			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-			safeSendPhotoToChat(notifier, chatID, chartURL, title)
+			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		case telegramiface.CallbackRangeHistory:
 			if len(route.Parts) != 2 {
@@ -793,7 +814,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			_ = state.save()
 			title := fmt.Sprintf("Cumulative Profit (%s -> %s, %s)", from.Format("2006-01-02 15:04"), to.Format("2006-01-02 15:04"), modeLabel)
 			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
-			safeSendPhotoToChat(notifier, chatID, chartURL, title)
+			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		default:
 			if strings.HasPrefix(data, "alert") || strings.Contains(data, "alerts") {

@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.2.7] - 2026-03-08
+
+### Added
+
+- Added `Refresh` inline button for cumulative profit charts (preset, custom window, relative range, and date-range modes) to quickly regenerate the same chart with latest data.
+- Added `PnL Emojis` setting in Telegram `Settings` menu (`ON/OFF`), persisted in `state.json` as `pnl_emojis_enabled`.
+- Added daily PnL table legend for emoji markers when enabled (`🟢 gain | 🔴 loss | ⚪ flat`).
+
+### Changed
+
+- `Trades Grouped` (Freqtrade) table now hides symbols with zero activity in the selected period (only traded symbols are shown).
+- Daily PnL table in Freqtrade mode now computes:
+  - `pnl = sell - buy - fee` (closed trades).
+  - `profit % = pnl / buy * 100` (closed-trade buy notional denominator).
+- Daily PnL report now includes a clarification note that Freqtrade UI percentages may differ when wallet/equity is used as denominator.
+- Telegram message and photo-caption sending now use HTML parse mode by default (except preformatted `<pre>` helper path), with automatic plain-text fallback if parsing fails.
+- Startup notification formatting now uses bold/italic/code for improved readability.
+
+## [v0.2.6] - 2026-03-08
+
+### Added
+
+- Custom cumulative profit timeline modes now include `Minutes` and `Trades` in Telegram flow (custom window, relative range, and date range).
+- Minute-level cumulative profit series support for both Freqtrade history mode and snapshot-based mode.
+- Trade-sequence cumulative profit mode (`Trades`) using closed Freqtrade trades in chronological order.
+
+### Changed
+
+- Bumped default image/version references to `v0.2.6` in Docker Compose, `.env.example`, local build args, and README examples.
+
 ## [v0.2.5] - 2026-03-08
 
 ### Fixed
