@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file.
   - cumulative forecast,
   - compound forecast.
 - Updated Telegram validation prompts and help text to reflect `3..365` day custom horizons.
+- Bumped default image/version references to `v0.2.10` in Docker Compose, `.env.example`, local build args, and README examples.
 
 ## [v0.2.9] - 2026-03-08
 
