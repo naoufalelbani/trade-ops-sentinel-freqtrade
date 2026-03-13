@@ -169,6 +169,35 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Window %s selected. Choose timeline mode:", label), customCumProfitGranularityKeyboard(token))
 			return
 		}
+		if !strings.HasPrefix(rawText, "/") && isAwaitingFreqtradeRestartInput(upd.Message.Chat.ID) {
+			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
+				setAwaitingFreqtradeRestartInput(upd.Message.Chat.ID, false)
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Freqtrade restart input canceled.", defaultKeyboard())
+				return
+			}
+			dur, err := time.ParseDuration(rawText)
+			if err != nil {
+				// Try again with simpler logic if time.ParseDuration fails (e.g. 1d -> 24h)
+				raw := strings.ToLower(rawText)
+				if strings.HasSuffix(raw, "d") {
+					days, errD := strconv.Atoi(strings.TrimSuffix(raw, "d"))
+					if errD == nil {
+						dur = time.Duration(days) * 24 * time.Hour
+						err = nil
+					}
+				}
+			}
+			if err != nil || dur <= 0 {
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid duration. Type like `10m`, `1h`, `1d` (or `cancel`).", defaultKeyboard())
+				return
+			}
+			setAwaitingFreqtradeRestartInput(upd.Message.Chat.ID, false)
+			restartAt := time.Now().UTC().Add(dur)
+			state.setFreqtradeRestartAt(restartAt)
+			_ = state.save()
+			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("✅ Freqtrade restart scheduled at %s UTC (in %v).", restartAt.Format("15:04:05"), dur.Round(time.Second)), defaultKeyboard())
+			return
+		}
 		text := normalizeCommand(upd.Message.Text)
 		switch text {
 		case "/menu":
@@ -276,6 +305,50 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		showSettingsMenu(state.settingsSummary(cfg, runtimeAlerts))
 	case "settings_ignore":
 		showSettingsMenu("Settings menu")
+	default:
+		if strings.HasPrefix(data, "stop_alert_") {
+			key := strings.TrimPrefix(data, "stop_alert_")
+			if runtimeAlerts != nil {
+				runtimeAlerts.StopAlert(key)
+			}
+			safeSendToChat(notifier, chatID, fmt.Sprintf("✅ Notification for <code>%s</code> stopped until recovery.", key), defaultKeyboard())
+			return
+		}
+	}
+
+	if strings.HasPrefix(data, "ft_restart_") {
+		var dur time.Duration
+		label := ""
+		switch data {
+		case "ft_restart_10m":
+			dur = 10 * time.Minute
+			label = "10m"
+		case "ft_restart_30m":
+			dur = 30 * time.Minute
+			label = "30m"
+		case "ft_restart_1h":
+			dur = 1 * time.Hour
+			label = "1h"
+		case "ft_restart_custom":
+			setAwaitingFreqtradeRestartInput(chatID, true)
+			safeSendToChat(notifier, chatID, "Type restart duration (e.g., `10m`, `3h`, `1d`).\nType `cancel` to stop.", defaultKeyboard())
+			return
+		}
+		if dur > 0 {
+			restartAt := time.Now().UTC().Add(dur)
+			state.setFreqtradeRestartAt(restartAt)
+			_ = state.save()
+			safeSendToChat(notifier, chatID, fmt.Sprintf("✅ Freqtrade restart scheduled in %s (at %s UTC).", label, restartAt.Format("15:04:05")), defaultKeyboard())
+		}
+		return
+	}
+
+	switch data {
+	case "menu", "menu_main":
+		// handled above
+	case "menu_actions":
+		// handled above
+	case "menu_reports":
 	case "refill_now":
 		msg, err := executeManualBNBBuy(ctx, cfg, binance, state, false)
 		if err != nil {

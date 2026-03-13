@@ -25,7 +25,8 @@ I created this project because I wanted a reliable way to make sure there is alw
 - Manual actions from Telegram (`Refill Now`, `Force Buy BNB`).
 - Daily/weekly/monthly reports for fees, PnL, and trade summaries.
 - Cumulative profit/fees charts with preset, custom, and date-range windows.
-- Freqtrade health checks from Telegram settings menu.
+- Freqtrade health monitoring and automated operational alerts.
+- Interactive Freqtrade restart scheduling (presets or custom duration).
 - Service/API health dashboard information in status and alerts.
 
 ## Architecture
@@ -71,7 +72,7 @@ docker compose up -d
 Optional: set a custom image in `.env`:
 
 ```env
-TRADE_OPS_IMAGE=ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.10
+TRADE_OPS_IMAGE=ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.11
 ```
 
 For local rebuild from source, use the local override file:
@@ -103,7 +104,7 @@ Build and push multi-arch image:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.10 \
+  -t ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.11 \
   --push .
 ```
 
@@ -192,9 +193,10 @@ When using `FREQTRADE`, the app requires:
 | `NOTIFY_ON_EVERY_CHECK` | `false` | Send update each cycle |
 | `BINANCE_BASE_URL` | `https://api.binance.com` | Binance API base URL (must be `https`) |
 | `TELEGRAM_BASE_URL` | `https://api.telegram.org` | Telegram API base URL (must be `https`) |
-| `APP_VERSION` | `v0.2.10` | Build/version label shown on startup and `/version` |
+| `APP_VERSION` | `v0.2.11` | Build/version label shown on startup and `/version` |
 | `APP_COMMIT` | `local` | Build commit shown on startup and `/version` |
 | `APP_BUILD_DATE` | `unknown` | Build timestamp shown on startup and `/version` |
+| `FREQTRADE_ALERT_ON_STOPPED` | `true` | Alert when Freqtrade bot is in `stopped` state |
 
 #### Reporting
 
@@ -302,7 +304,10 @@ Behavior:
 
 - Pair list resolves from Freqtrade status/trades endpoints.
 - Fee and PnL analytics use Freqtrade trade history.
-- Telegram `Freqtrade Health` shows endpoint/auth diagnostics.
+- Telegram `/status` reports real-time Freqtrade operational state (`running`, `stopped`).
+- Automatic alerts trigger when the bot enters a `stopped` state.
+- Interactive restart keyboard allows scheduling a restart (10m, 30m, 1h, or Custom duration).
+- Watchdog automatically executes restarts via the Freqtrade API `/api/v1/start`.
 
 ## Docker Compose Networking Note
 

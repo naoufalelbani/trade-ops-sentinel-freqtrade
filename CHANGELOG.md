@@ -1,6 +1,30 @@
 # Changelog
 
 All notable changes to this project are documented in this file.
+ 
+## [v0.2.11] - 2026-03-13
+ 
+### Added
+ 
+- Freqtrade operational status and API health monitoring:
+  - Added operational state reporting ("running", "stopped") to `/status`.
+  - Added new `/api/v1/ping` connectivity check to `/status`.
+- Automated alerts for Freqtrade operational state:
+  - Bot now monitors Freqtrade state and alerts on Telegram if the bot is in a `stopped` state.
+  - Configurable via `FREQTRADE_ALERT_ON_STOPPED` (defaults to `true`).
+- Scheduled Freqtrade Restart feature:
+  - Interactive alerts when stopped, with buttons for scheduled restarts (10m, 30m, 1h, or Custom).
+  - Text-based input handling for custom durations (e.g., `2h`, `1d`).
+  - Persistent restart schedule that survives Sentinel bot reboots.
+  - Automated restart execution via Freqtrade REST API `/api/v1/start`.
+- New state persistence fields:
+  - `ft_restart_at` timestamp for scheduled restarts.
+ 
+### Changed
+ 
+- `/status` response now includes a dedicated Freqtrade health line.
+- Refactored `freqtrade_client.go` to expose health and state fetching for use by the watchdog.
+- Bumped default image/version references to `v0.2.11` in Docker Compose, `.env.example`, local build args, and README examples.
 
 ## [v0.2.10] - 2026-03-08
 

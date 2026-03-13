@@ -237,6 +237,18 @@ func (s *MonitorState) setAPIFailureAlertsEnabled(v bool) {
 	s.hasAPIFailureAlertsEnabled = true
 }
 
+func (s *MonitorState) getFreqtradeRestartAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ftRestartAt
+}
+
+func (s *MonitorState) setFreqtradeRestartAt(t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ftRestartAt = t
+}
+
 func (s *MonitorState) settingsSummary(cfg Config, alerts *alertManager) string {
 	displayCurrency := s.getDisplayCurrency(cfg.FeeMainCurrency)
 	chartTheme := strings.Title(s.getChartTheme("dark"))
@@ -739,6 +751,9 @@ func (s *MonitorState) save() error {
 	if !s.lastBuyAt.IsZero() {
 		p.LastBuyAt = s.lastBuyAt.UnixMilli()
 	}
+	if !s.ftRestartAt.IsZero() {
+		p.FreqtradeRestartAt = s.ftRestartAt.UnixMilli()
+	}
 
 	if err := os.MkdirAll(filepath.Dir(s.stateFile), 0o700); err != nil {
 		return err
@@ -771,6 +786,9 @@ func (s *MonitorState) load() error {
 	s.startCount = p.StartCount
 	if p.LastBuyAt > 0 {
 		s.lastBuyAt = time.UnixMilli(p.LastBuyAt).UTC()
+	}
+	if p.FreqtradeRestartAt > 0 {
+		s.ftRestartAt = time.UnixMilli(p.FreqtradeRestartAt).UTC()
 	}
 	s.snapshots = p.Snapshots
 	s.refillEvents = p.RefillEvents

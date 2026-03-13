@@ -47,6 +47,10 @@ type freqtradeTrade struct {
 	ProfitAbs        float64 `json:"profit_abs"`
 }
 
+type freqtradeConfigResponse struct {
+	State string `json:"state"`
+}
+
 func resolveTrackedSymbolsFromFreqtrade(ctx context.Context, cfg Config) ([]string, error) {
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.FreqtradeAPIURL), "/")
 	if baseURL == "" {
@@ -451,6 +455,95 @@ func freqtradeAuthEndpointCheck(ctx context.Context, client *http.Client, baseUR
 	_, _ = io.ReadAll(io.LimitReader(res.Body, 256))
 	_ = res.Body.Close()
 	return fmt.Sprintf("%s: %s", path, summarizeHTTPStatus(res.StatusCode))
+}
+
+func fetchFreqtradeState(ctx context.Context, cfg Config) (string, error) {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.FreqtradeAPIURL), "/")
+	if baseURL == "" {
+		return "", errors.New("Freqtrade: not configured")
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// 1. Check basic connectivity
+	pingReq, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/ping", nil)
+	if err != nil {
+		return "", fmt.Errorf("request build error: %v", err)
+	}
+
+	res, reqErr := client.Do(pingReq)
+	if reqErr != nil {
+		return "", errors.New("unreachable")
+	}
+	_, _ = io.ReadAll(io.LimitReader(res.Body, 256))
+	_ = res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("http error: %d", res.StatusCode)
+	}
+
+	state := "online"
+
+	// 2. Try to get operational state (authenticated)
+	if cfg.FreqtradeUsername != "" && cfg.FreqtradePassword != "" {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/show_config", nil)
+		if err == nil {
+			req.SetBasicAuth(cfg.FreqtradeUsername, cfg.FreqtradePassword)
+			res, err := client.Do(req)
+			if err == nil {
+				defer res.Body.Close()
+				if res.StatusCode == http.StatusOK {
+					var config freqtradeConfigResponse
+					if err := json.NewDecoder(res.Body).Decode(&config); err == nil && config.State != "" {
+						state = config.State
+					}
+				}
+			}
+		}
+	}
+
+	return state, nil
+}
+
+func buildFreqtradeStatusSummary(ctx context.Context, cfg Config) string {
+	state, err := fetchFreqtradeState(ctx, cfg)
+	if err != nil {
+		if err.Error() == "Freqtrade: not configured" {
+			return err.Error()
+		}
+		return fmt.Sprintf("Freqtrade: %v", err)
+	}
+	if state == "online" {
+		return "Freqtrade: online"
+	}
+	return fmt.Sprintf("Freqtrade: online (%s)", state)
+}
+
+func startFreqtrade(ctx context.Context, cfg Config) error {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.FreqtradeAPIURL), "/")
+	if baseURL == "" {
+		return errors.New("Freqtrade: not configured")
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	endpoint := baseURL + "/api/v1/start"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	req.SetBasicAuth(cfg.FreqtradeUsername, cfg.FreqtradePassword)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 512))
+		return fmt.Errorf("http=%d body=%s", res.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 func summarizeHTTPStatus(code int) string {

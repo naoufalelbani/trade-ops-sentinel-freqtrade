@@ -48,6 +48,7 @@ type alertManager struct {
 	apiDegraded      map[string]bool
 
 	dedupLast map[string]time.Time
+	silenced  map[string]bool
 	errors    []alertErrorEvent
 	services  map[string]*serviceHeartbeat
 }
@@ -84,6 +85,7 @@ func newAlertManager(cfg Config, notifier *TelegramNotifier) *alertManager {
 		apiBackoffUntil:         make(map[string]time.Time),
 		apiDegraded:             make(map[string]bool),
 		dedupLast:               make(map[string]time.Time),
+		silenced:                make(map[string]bool),
 		errors:                  make([]alertErrorEvent, 0, 64),
 		services:                make(map[string]*serviceHeartbeat),
 	}
@@ -132,18 +134,23 @@ func (a *alertManager) checkHeartbeatStale() {
 		// Legacy single-check heartbeat is healthy; continue with service-specific checks.
 	} else {
 		msg := fmt.Sprintf(
-			"Heartbeat alert: no successful check for %s (last success %s UTC). Last error: %s",
+			"🚨 <b>Heartbeat alert</b>: no successful check for %s (last success %s UTC). Last error: %s",
 			staleFor.Round(time.Second),
 			last.Format("2006-01-02 15:04:05"),
 			orDefault(lastErr, "n/a"),
 		)
-		a.sendDedup("heartbeat.stale", a.cfg.APIFailureAlertCooldown, msg)
+		key := "heartbeat.stale"
+		a.sendDedupWithMarkup(key, a.cfg.APIFailureAlertCooldown, msg, stopAlertKeyboard(key))
 	}
 	for name, svc := range services {
-		if svc.LastSuccess.IsZero() {
-			continue
-		}
 		svcStale := time.Since(svc.LastSuccess)
+		if svc.LastSuccess.IsZero() {
+			if svc.ConsecutiveFails > 0 {
+				svcStale = a.cfg.HeartbeatStaleAfter + time.Minute // Force stale if failed and never succeeded
+			} else {
+				continue
+			}
+		}
 		if svcStale < a.cfg.HeartbeatStaleAfter {
 			continue
 		}
@@ -153,16 +160,51 @@ func (a *alertManager) checkHeartbeatStale() {
 		} else {
 			restartText = strconv.Itoa(svc.RecoveryCount)
 		}
+
+		header := "Heartbeat watchdog alert"
+		emoji := "⚠️"
+		if svcStale >= a.cfg.HeartbeatStaleAfter*2 {
+			emoji = "🛑"
+		}
+		if name == "freqtrade" {
+			header = "<b>Freqtrade Stopped</b>"
+		}
+
+		lastSuccessText := "never"
+		if !svc.LastSuccess.IsZero() {
+			lastSuccessText = svc.LastSuccess.Format("2006-01-02 15:04:05")
+		}
+
 		msg := fmt.Sprintf(
-			"Heartbeat watchdog alert [%s]: stale for %s (last success %s UTC). Restarts=%s Recoveries=%d Last error=%s",
+			"%s [%s]: %s stale for %s (last success %s UTC). Restarts=%s Recoveries=%d Last error=%s",
+			emoji,
 			name,
+			header,
 			svcStale.Round(time.Second),
-			svc.LastSuccess.Format("2006-01-02 15:04:05"),
+			lastSuccessText,
 			restartText,
 			svc.RecoveryCount,
 			orDefault(svc.LastError, "n/a"),
 		)
-		a.sendDedup("heartbeat.service."+name, a.cfg.APIFailureAlertCooldown, msg)
+		key := "heartbeat.service." + name
+		a.sendDedupWithMarkup(key, a.cfg.APIFailureAlertCooldown, msg, stopAlertKeyboard(key))
+	}
+}
+
+func (a *alertManager) observeFreqtradeState(state string) {
+	if a == nil || !a.cfg.FreqtradeAlertOnStopped {
+		return
+	}
+	if strings.EqualFold(state, "stopped") {
+		msg := "🛑 <b>Freqtrade Alert</b>: Bot is currently in <code>stopped</code> state. Trading is inactive."
+		key := "freqtrade.state.stopped"
+		a.sendDedupWithMarkup(key, a.cfg.APIFailureAlertCooldown, msg, freqtradeStoppedKeyboard(key))
+	} else if strings.EqualFold(state, "running") {
+		// If it recovered to running, we could optionally send a recovery message
+		// but for now we just let the dedup cooldown handle it.
+		a.mu.Lock()
+		delete(a.silenced, "freqtrade.state.stopped")
+		a.mu.Unlock()
 	}
 }
 
@@ -170,14 +212,13 @@ func (a *alertManager) observeAPICall(source string, duration time.Duration, err
 	if a == nil || !a.apiFailureAlertsOn() {
 		return
 	}
-	now := time.Now().UTC()
 	threshold := a.cfg.APIFailureThreshold
 	if threshold <= 0 {
 		threshold = 3
 	}
 	cooldown := a.cfg.APIFailureAlertCooldown
 	if cooldown <= 0 {
-		cooldown = 15 * time.Minute
+		cooldown = 10 * time.Minute
 	}
 
 	a.mu.Lock()
@@ -195,16 +236,12 @@ func (a *alertManager) observeAPICall(source string, duration time.Duration, err
 		a.apiErrorCalls[source]++
 		a.apiLastErr[source] = err.Error()
 		count := a.apiFailureCounts[source]
-		last := a.apiFailureLast[source]
 		a.apiDegraded[source] = count >= threshold
 		a.mu.Unlock()
 
 		a.recordError(source, err)
-		if count >= threshold && now.Sub(last) >= cooldown {
-			a.mu.Lock()
-			a.apiFailureLast[source] = now
-			a.mu.Unlock()
-			a.sendRaw(fmt.Sprintf("API alert [%s]: %d consecutive failures (%s). Last error: %v", source, count, classifyAPIError(err), err))
+		if count >= threshold {
+			a.sendDedupWithMarkup(source, cooldown, fmt.Sprintf("🚨 <b>API alert</b> [%s]: %d consecutive failures (%s). Last error: %v", source, count, classifyAPIError(err), err), stopAlertKeyboard(source))
 		}
 		return
 	}
@@ -220,7 +257,7 @@ func (a *alertManager) observeAPICall(source string, duration time.Duration, err
 		if prevFailures >= threshold && a.apiDegraded[source] {
 			a.apiDegraded[source] = false
 			a.mu.Unlock()
-			a.sendDedup("api.recovered."+source, cooldown, fmt.Sprintf("API recovered [%s]: request flow back to normal", source))
+			a.sendDedup("api.recovered."+source, cooldown, fmt.Sprintf("✅ <b>API recovered</b> [%s]: request flow back to normal", source))
 			return
 		}
 		a.apiDegraded[source] = false
@@ -230,14 +267,10 @@ func (a *alertManager) observeAPICall(source string, duration time.Duration, err
 	if duration >= latencyThreshold {
 		a.apiLatencySpikes[source]++
 		spikes := a.apiLatencySpikes[source]
-		last := a.apiLatencyLast[source]
 		a.apiDegraded[source] = spikes >= latencySpikeThreshold
 		a.mu.Unlock()
-		if spikes >= latencySpikeThreshold && now.Sub(last) >= cooldown {
-			a.mu.Lock()
-			a.apiLatencyLast[source] = now
-			a.mu.Unlock()
-			a.sendRaw(fmt.Sprintf("API timeout spike [%s]: %d slow calls in a row (latest %s)", source, spikes, duration.Round(time.Millisecond)))
+		if spikes >= latencySpikeThreshold {
+			a.sendDedupWithMarkup(source+".latency", cooldown, fmt.Sprintf("⚠️ <b>API timeout spike</b> [%s]: %d slow calls in a row (latest %s)", source, spikes, duration.Round(time.Millisecond)), stopAlertKeyboard(source+".latency"))
 		}
 		return
 	}
@@ -245,7 +278,7 @@ func (a *alertManager) observeAPICall(source string, duration time.Duration, err
 	if prevFailures >= threshold && a.apiDegraded[source] {
 		a.apiDegraded[source] = false
 		a.mu.Unlock()
-		a.sendDedup("api.recovered."+source, cooldown, fmt.Sprintf("API recovered [%s]: request flow back to normal", source))
+		a.sendDedup("api.recovered."+source, cooldown, fmt.Sprintf("✅ <b>API recovered</b> [%s]: request flow back to normal", source))
 		return
 	}
 	a.apiDegraded[source] = false
@@ -273,7 +306,16 @@ func (a *alertManager) observeRetry(source string, attempt int, wait time.Durati
 		backoffUntil.Format("15:04:05"),
 		err,
 	)
-	a.sendDedup("api.retry."+source, a.cfg.APIFailureAlertCooldown, msg)
+	a.sendDedup("api.retry."+source, a.cfg.APIFailureAlertCooldown, fmt.Sprintf("🕒 <b>API degraded</b> [%s]: %s", source, msg))
+}
+
+func (a *alertManager) StopAlert(key string) {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	a.silenced[key] = true
+	a.mu.Unlock()
 }
 
 func (a *alertManager) setBotRestartCount(v int) {
@@ -302,6 +344,11 @@ func (a *alertManager) serviceSuccessLocked(name string) {
 	}
 	svc.ConsecutiveFails = 0
 	svc.LastSuccess = time.Now().UTC()
+	delete(a.silenced, name)
+	delete(a.silenced, "heartbeat.service."+name)
+	if name == a.botContainerName {
+		delete(a.silenced, "heartbeat.stale")
+	}
 }
 
 func (a *alertManager) serviceFailureLocked(name, errMsg string) {
@@ -434,29 +481,41 @@ func (a *alertManager) recordError(source string, err error) {
 }
 
 func (a *alertManager) sendDedup(key string, cooldown time.Duration, msg string) {
+	a.sendDedupWithMarkup(key, cooldown, msg, nil)
+}
+
+func (a *alertManager) sendDedupWithMarkup(key string, cooldown time.Duration, msg string, markup *inlineKeyboardMarkup) {
 	if a == nil {
 		return
 	}
 	if cooldown <= 0 {
-		cooldown = 15 * time.Minute
+		cooldown = 10 * time.Minute // Default to 10 minutes as requested by user
 	}
 	now := time.Now().UTC()
 	a.mu.Lock()
+	if a.silenced[key] {
+		a.mu.Unlock()
+		return
+	}
 	last := a.dedupLast[key]
-	if now.Sub(last) < cooldown {
+	if !last.IsZero() && now.Sub(last) < cooldown {
 		a.mu.Unlock()
 		return
 	}
 	a.dedupLast[key] = now
 	a.mu.Unlock()
-	a.sendRaw(msg)
+	a.sendRawWithMarkup(msg, markup)
 }
 
 func (a *alertManager) sendRaw(msg string) {
+	a.sendRawWithMarkup(msg, nil)
+}
+
+func (a *alertManager) sendRawWithMarkup(msg string, markup *inlineKeyboardMarkup) {
 	if a == nil || strings.TrimSpace(msg) == "" {
 		return
 	}
-	safeSend(a.notifier, msg, defaultKeyboard())
+	safeSend(a.notifier, msg, markup)
 }
 
 func (a *alertManager) heartbeatAlertsOn() bool {

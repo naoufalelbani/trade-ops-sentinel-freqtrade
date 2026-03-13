@@ -17,6 +17,24 @@ func defaultKeyboard() *inlineKeyboardMarkup {
 	}
 }
 
+func stopAlertKeyboard(key string) *inlineKeyboardMarkup {
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "🛑 Stop Notification", CallbackData: "stop_alert_" + key}},
+		},
+	}
+}
+
+func freqtradeStoppedKeyboard(key string) *inlineKeyboardMarkup {
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Restart 10m", CallbackData: "ft_restart_10m"}, {Text: "Restart 30m", CallbackData: "ft_restart_30m"}},
+			{{Text: "Restart 1h", CallbackData: "ft_restart_1h"}, {Text: "Custom Restart", CallbackData: "ft_restart_custom"}},
+			{{Text: "🛑 Stop Notification", CallbackData: "stop_alert_" + key}},
+		},
+	}
+}
+
 func actionsKeyboard() *inlineKeyboardMarkup {
 	return &inlineKeyboardMarkup{
 		InlineKeyboard: [][]inlineKeyboardButton{

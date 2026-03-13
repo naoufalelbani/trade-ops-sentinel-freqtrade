@@ -91,6 +91,7 @@ type Config struct {
 	FreqtradeTradesLimit      int
 	FreqtradeHistoryMode      bool
 	FreqtradeMaxPages         int
+	FreqtradeAlertOnStopped   bool
 }
 
 type Snapshot = domain.Snapshot
@@ -114,6 +115,7 @@ type persistState struct {
 	CustomCumWin            []string      `json:"custom_cum_windows,omitempty"`
 	CustomRanges            []rangeRecord `json:"custom_ranges,omitempty"`
 	LastUpdated             int64         `json:"last_updated"`
+	FreqtradeRestartAt      int64         `json:"ft_restart_at,omitempty"`
 }
 
 type MonitorState struct {
@@ -140,6 +142,7 @@ type MonitorState struct {
 	customRanges               []rangeRecord
 	stateFile                  string
 	maxSnapshots               int
+	ftRestartAt                time.Time
 }
 
 type BinanceClient struct {
@@ -231,6 +234,13 @@ var customCumProfitCalendarRange = struct {
 	m  map[int64]calendarRangeState
 }{
 	m: map[int64]calendarRangeState{},
+}
+
+var customFreqtradeRestartInput = struct {
+	mu       sync.Mutex
+	awaiting map[int64]bool
+}{
+	awaiting: map[int64]bool{},
 }
 
 type spotCacheEntry struct {

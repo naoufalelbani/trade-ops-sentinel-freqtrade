@@ -43,7 +43,7 @@ func loadConfig() (Config, error) {
 		HeartbeatPingURL:          getEnv("HEARTBEAT_PING_URL", ""),
 		APIFailureAlertEnabled:    mustBool("API_FAILURE_ALERT_ENABLED", true),
 		APIFailureThreshold:       mustInt("API_FAILURE_THRESHOLD", 3),
-		APIFailureAlertCooldown:   mustDuration("API_FAILURE_ALERT_COOLDOWN", "15m"),
+		APIFailureAlertCooldown:   mustDuration("API_FAILURE_ALERT_COOLDOWN", "10m"),
 		APILatencyThreshold:       mustDuration("API_LATENCY_THRESHOLD", "8s"),
 		APILatencySpikeThreshold:  mustInt("API_LATENCY_SPIKE_THRESHOLD", 3),
 		AbnormalMoveAlertEnabled:  mustBool("ABNORMAL_MOVE_ALERT_ENABLED", true),
@@ -70,6 +70,7 @@ func loadConfig() (Config, error) {
 		FreqtradePassword:         getEnv("FREQTRADE_PASSWORD", ""),
 		FreqtradeTradesLimit:      mustInt("FREQTRADE_TRADES_LIMIT", 500),
 		FreqtradeMaxPages:         mustInt("FREQTRADE_MAX_PAGES", 20),
+		FreqtradeAlertOnStopped:   mustBool("FREQTRADE_ALERT_ON_STOPPED", true),
 	}
 
 	cfg.BinanceAPIKey = strings.TrimSpace(os.Getenv("BINANCE_API_KEY"))

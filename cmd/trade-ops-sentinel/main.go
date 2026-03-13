@@ -112,7 +112,7 @@ func main() {
 
 	go telegramLoop(context.Background(), cfg, binance, notifier, state)
 	go dailyReportLoop(context.Background(), cfg, binance, notifier, state)
-	go heartbeatLoop(context.Background(), cfg, runtimeAlerts)
+	go heartbeatLoop(context.Background(), cfg, runtimeAlerts, state)
 
 	restartCount := startCount - 1
 	if restartCount < 0 {
