@@ -18,7 +18,7 @@ func runCheck(ctx context.Context, cfg Config, binance *BinanceClient, notifier 
 	if err != nil {
 		return err
 	}
-	minBNBThreshold, targetBNBThreshold, err := cfg.resolveBNBThresholds(price, portfolioQuote)
+	minBNBThreshold, targetBNBThreshold, err := cfg.ResolveBNBThresholds(price, portfolioQuote)
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func executeManualBNBBuy(ctx context.Context, cfg Config, binance *BinanceClient
 	if err != nil {
 		return "", err
 	}
-	minBNBThreshold, targetBNBThreshold, err := cfg.resolveBNBThresholds(price, portfolioQuote)
+	minBNBThreshold, targetBNBThreshold, err := cfg.ResolveBNBThresholds(price, portfolioQuote)
 	if err != nil {
 		return "", err
 	}

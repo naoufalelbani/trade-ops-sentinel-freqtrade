@@ -88,7 +88,7 @@ func loadConfig() (Config, error) {
 	if cfg.BinanceAPIKey == "" || cfg.BinanceAPISecret == "" {
 		return Config{}, errors.New("BINANCE_API_KEY and BINANCE_API_SECRET are required")
 	}
-	if cfg.useRatioThresholds() {
+	if cfg.UseRatioThresholds() {
 		if cfg.BNBRatioMin <= 0 || cfg.BNBRatioTarget <= 0 {
 			return Config{}, errors.New("BNB_RATIO_MIN and BNB_RATIO_TARGET must both be > 0 when BNB_RATIO_MODE=true")
 		}
@@ -98,7 +98,7 @@ func loadConfig() (Config, error) {
 		if cfg.BNBRatioTarget > 1 {
 			return Config{}, errors.New("BNB_RATIO_TARGET must be <= 1")
 		}
-	} else if cfg.useUSDTThresholds() {
+	} else if cfg.UseUSDTThresholds() {
 		if cfg.MinBNBUSDT <= 0 || cfg.TargetBNBUSDT <= 0 {
 			return Config{}, errors.New("MIN_BNB_THRESHOLD_USDT and TARGET_BNB_USDT must both be > 0 when using USDT thresholds")
 		}

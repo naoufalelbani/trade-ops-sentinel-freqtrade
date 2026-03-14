@@ -111,7 +111,7 @@ func main() {
 		"<b>Trade Ops Sentinel started</b>\nVersion=<i>%s</i>\n<b>Symbol</b>=<code>%s</code>\n<i>%s</i>\n<b>Tracked symbols</b>=%d\n<b>Interval</b>=%s\n<b>Container</b>=<code>%s</code> <b>Restarts</b>=%d",
 		versionSummary(),
 		cfg.Symbol,
-		cfg.thresholdModeLine(),
+		cfg.ThresholdModeLine(),
 		len(cfg.TrackedSymbols),
 		cfg.CheckInterval,
 		strings.TrimSpace(orDefault(os.Getenv("HOSTNAME"), "trade-ops-sentinel")),

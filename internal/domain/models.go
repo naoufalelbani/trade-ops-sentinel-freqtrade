@@ -112,3 +112,32 @@ type DailyPnlRow struct {
 	PnL float64
 	Pct float64
 }
+
+func (c Config) UseUSDTThresholds() bool {
+	return c.ToThresholdPolicy().UseUSDTThresholds()
+}
+
+func (c Config) UseRatioThresholds() bool {
+	return c.ToThresholdPolicy().UseRatioThresholds()
+}
+
+func (c Config) ResolveBNBThresholds(price, portfolioQuote float64) (float64, float64, error) {
+	return ResolveBNBThresholds(price, portfolioQuote, c.ToThresholdPolicy())
+}
+
+func (c Config) ThresholdModeLine() string {
+	return ThresholdModeLine(c.ToThresholdPolicy())
+}
+
+func (c Config) ToThresholdPolicy() ThresholdPolicy {
+	return ThresholdPolicy{
+		MinBNB:         c.MinBNB,
+		TargetBNB:      c.TargetBNB,
+		MinBNBUSDT:     c.MinBNBUSDT,
+		TargetBNBUSDT:  c.TargetBNBUSDT,
+		BNBRatioMode:   c.BNBRatioMode,
+		BNBRatioMin:    c.BNBRatioMin,
+		BNBRatioTarget: c.BNBRatioTarget,
+		QuoteAsset:     c.QuoteAsset,
+	}
+}

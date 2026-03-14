@@ -8,7 +8,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"trade-ops-sentinel/internal/domain"
 )
 
 func buildStatusReport(ctx context.Context, cfg Config, binance *BinanceClient, state *MonitorState) (string, error) {
@@ -229,36 +228,6 @@ func formatBytes(v uint64) string {
 	}
 	return fmt.Sprintf("%.1f%s", float64(v)/div, suffix)
 }
-
-func (c Config) useUSDTThresholds() bool {
-	return c.toThresholdPolicy().UseUSDTThresholds()
-}
-
-func (c Config) useRatioThresholds() bool {
-	return c.toThresholdPolicy().UseRatioThresholds()
-}
-
-func (c Config) resolveBNBThresholds(price, portfolioQuote float64) (float64, float64, error) {
-	return domain.ResolveBNBThresholds(price, portfolioQuote, c.toThresholdPolicy())
-}
-
-func (c Config) thresholdModeLine() string {
-	return domain.ThresholdModeLine(c.toThresholdPolicy())
-}
-
-func (c Config) toThresholdPolicy() domain.ThresholdPolicy {
-	return domain.ThresholdPolicy{
-		MinBNB:         c.MinBNB,
-		TargetBNB:      c.TargetBNB,
-		MinBNBUSDT:     c.MinBNBUSDT,
-		TargetBNBUSDT:  c.TargetBNBUSDT,
-		BNBRatioMode:   c.BNBRatioMode,
-		BNBRatioMin:    c.BNBRatioMin,
-		BNBRatioTarget: c.BNBRatioTarget,
-		QuoteAsset:     c.QuoteAsset,
-	}
-}
-
 func loadAccountSnapshot(ctx context.Context, cfg Config, binance *BinanceClient) (float64, float64, float64, float64, error) {
 	balances, err := binance.GetFreeBalances(ctx)
 	if err != nil {

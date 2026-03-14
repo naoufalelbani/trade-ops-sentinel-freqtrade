@@ -47,6 +47,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		}
 		rawText := strings.TrimSpace(upd.Message.Text)
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCompoundPredictionDays(upd.Message.Chat.ID) {
+			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingCompoundPredictionDays(upd.Message.Chat.ID, false)
 				safeSendToChat(notifier, upd.Message.Chat.ID, "Compound prediction input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
