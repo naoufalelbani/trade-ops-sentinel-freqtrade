@@ -29,6 +29,14 @@ func RegisterAllHandlers(r *MenuRegistry) {
 		c.Reply(report, "menu_main")
 		return nil
 	})
+	r.RegisterHandler("status", func(c *MenuContext) error {
+		report, err := buildStatusReport(c.Ctx, c.Cfg, c.Binance, c.State)
+		if err != nil {
+			return err
+		}
+		c.Reply(report, "menu_main")
+		return nil
+	})
 	r.RegisterHandler("/daily", func(c *MenuContext) error {
 		return sendDailyReport(c.Ctx, c.Cfg, c.Binance, c.Notifier, c.State)
 	})
@@ -149,29 +157,17 @@ func RegisterAllHandlers(r *MenuRegistry) {
 	})
 	r.RegisterHandler("chart_size_*", handleChartSizeChange)
 
-	r.RegisterHandler("chart_labels_menu", func(c *MenuContext) error {
-		enabled := c.State.getChartLabelsEnabled(true)
-		GetMenuRegistry().SetKeyboard("temp_labels", chartLabelsKeyboard(enabled))
-		c.Reply(fmt.Sprintf("Chart value labels are currently: %t", enabled), "temp_labels")
-		return nil
+	r.RegisterHandler("chart_labels_*", func(c *MenuContext) error {
+		return handleToggleSetting(c, "Chart Labels", c.State.getChartLabelsEnabled, c.State.setChartLabelsEnabled)
 	})
-	r.RegisterHandler("chart_labels_*", handleChartLabelsToggle)
 
-	r.RegisterHandler("chart_grid_menu", func(c *MenuContext) error {
-		enabled := c.State.getChartGridEnabled(true)
-		GetMenuRegistry().SetKeyboard("temp_grid", chartGridKeyboard(enabled))
-		c.Reply(fmt.Sprintf("Chart grid is currently: %t", enabled), "temp_grid")
-		return nil
+	r.RegisterHandler("chart_grid_*", func(c *MenuContext) error {
+		return handleToggleSetting(c, "Chart Grid", c.State.getChartGridEnabled, c.State.setChartGridEnabled)
 	})
-	r.RegisterHandler("chart_grid_*", handleChartGridToggle)
 
-	r.RegisterHandler("pnl_emoji_menu", func(c *MenuContext) error {
-		enabled := c.State.getPnLEmojisEnabled(true)
-		GetMenuRegistry().SetKeyboard("temp_emojis", pnlEmojiKeyboard(enabled))
-		c.Reply(fmt.Sprintf("PnL emojis are currently: %t", enabled), "temp_emojis")
-		return nil
+	r.RegisterHandler("pnl_emoji_*", func(c *MenuContext) error {
+		return handleToggleSetting(c, "PnL Emojis", c.State.getPnLEmojisEnabled, c.State.setPnLEmojisEnabled)
 	})
-	r.RegisterHandler("pnl_emoji_*", handlePnLEmojiToggle)
 
 	r.RegisterHandler("chart_mode_menu", func(c *MenuContext) error {
 		current := c.State.getChartLabelMode("staggered")
@@ -180,6 +176,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 		return nil
 	})
 	r.RegisterHandler("chart_mode_*", handleChartModeChange)
+	r.RegisterHandler("alert_*", handleAlertToggle)
 
 	r.RegisterHandler("alerts_menu", func(c *MenuContext) error {
 		heartbeatEnabled := c.Cfg.HeartbeatAlertEnabled
@@ -192,7 +189,6 @@ func RegisterAllHandlers(r *MenuRegistry) {
 		c.Reply("Toggle runtime alerts:", "temp_alerts")
 		return nil
 	})
-	r.RegisterHandler("alert_*", handleAlertToggle)
 
 	// Prefix Handlers
 	r.RegisterHandler("stop_alert_*", func(c *MenuContext) error {
@@ -502,48 +498,18 @@ func handleChartSizeChange(c *MenuContext) error {
 	return nil
 }
 
-func handleChartLabelsToggle(c *MenuContext) error {
+func handleToggleSetting(c *MenuContext, name string, getter func(bool) bool, setter func(bool)) error {
 	data := c.Update.CallbackQuery.Data
 	enabled := strings.HasSuffix(data, "_on")
-	old := strconv.FormatBool(c.State.getChartLabelsEnabled(true))
-	c.State.setChartLabelsEnabled(enabled)
+	old := strconv.FormatBool(getter(true))
+	setter(enabled)
 	_ = c.State.save()
-	recordSettingChange(c.State, c.Update, "chart_labels_enabled", old, strconv.FormatBool(enabled))
+	recordSettingChange(c.State, c.Update, strings.ToLower(strings.ReplaceAll(name, " ", "_")), old, strconv.FormatBool(enabled))
 	label := "disabled"
 	if enabled {
 		label = "enabled"
 	}
-	c.Reply(fmt.Sprintf("Chart labels %s.", label), "menu_settings")
-	return nil
-}
-
-func handleChartGridToggle(c *MenuContext) error {
-	data := c.Update.CallbackQuery.Data
-	enabled := strings.HasSuffix(data, "_on")
-	old := strconv.FormatBool(c.State.getChartGridEnabled(true))
-	c.State.setChartGridEnabled(enabled)
-	_ = c.State.save()
-	recordSettingChange(c.State, c.Update, "chart_grid_enabled", old, strconv.FormatBool(enabled))
-	label := "disabled"
-	if enabled {
-		label = "enabled"
-	}
-	c.Reply(fmt.Sprintf("Chart grid %s.", label), "menu_settings")
-	return nil
-}
-
-func handlePnLEmojiToggle(c *MenuContext) error {
-	data := c.Update.CallbackQuery.Data
-	enabled := strings.HasSuffix(data, "_on")
-	old := strconv.FormatBool(c.State.getPnLEmojisEnabled(true))
-	c.State.setPnLEmojisEnabled(enabled)
-	_ = c.State.save()
-	recordSettingChange(c.State, c.Update, "pnl_emojis_enabled", old, strconv.FormatBool(enabled))
-	label := "disabled"
-	if enabled {
-		label = "enabled"
-	}
-	c.Reply(fmt.Sprintf("PnL emojis %s.", label), "menu_settings")
+	c.Reply(fmt.Sprintf("%s %s.", name, label), "menu_settings")
 	return nil
 }
 

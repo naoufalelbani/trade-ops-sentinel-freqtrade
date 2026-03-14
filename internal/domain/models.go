@@ -76,7 +76,8 @@ type Config struct {
 	FreqtradePassword         string
 	FreqtradeTradesLimit      int
 	FreqtradeHistoryMode      bool
-	FreqtradeMaxPages         int
+	FreqtradeMaxPages       int
+	FreqtradeAlertOnStopped bool
 }
 
 type Snapshot struct {
@@ -98,4 +99,16 @@ type RefillEvent struct {
 type RangeRecord struct {
 	FromTS int64 `json:"from_ts"`
 	ToTS   int64 `json:"to_ts"`
+}
+
+type RefillStats struct {
+	Count       int
+	QuoteSpent  float64
+	BNBReceived float64
+}
+
+type DailyPnlRow struct {
+	Day string
+	PnL float64
+	Pct float64
 }

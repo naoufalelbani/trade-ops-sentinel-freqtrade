@@ -9,7 +9,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"trade-ops-sentinel/internal/domain"
 )
+
+type refillStats = domain.RefillStats
+type dailyPnlRow = domain.DailyPnlRow
 
 func (s *MonitorState) snapshotDaySet(days int) map[string]bool {
 	s.mu.Lock()
@@ -370,17 +374,6 @@ func (s *MonitorState) customRangeHistory() []rangeRecord {
 	return out
 }
 
-type refillStats struct {
-	Count       int
-	QuoteSpent  float64
-	BNBReceived float64
-}
-
-type dailyPnlRow struct {
-	Day string
-	PnL float64
-	Pct float64
-}
 
 func (s *MonitorState) refillStatsSince(d time.Duration) refillStats {
 	s.mu.Lock()

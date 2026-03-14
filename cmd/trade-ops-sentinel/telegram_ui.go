@@ -8,13 +8,7 @@ import (
 )
 
 func defaultKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Status", CallbackData: "status"}, {Text: "Actions", CallbackData: "menu_actions"}},
-			{{Text: "Reports", CallbackData: "menu_reports"}, {Text: "Charts", CallbackData: "menu_charts"}},
-			{{Text: "Settings", CallbackData: "menu_settings"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("menu_main")
 }
 
 func stopAlertKeyboard(key string) *inlineKeyboardMarkup {
@@ -36,72 +30,23 @@ func freqtradeStoppedKeyboard(key string) *inlineKeyboardMarkup {
 }
 
 func actionsKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Refill Now", CallbackData: "refill_now"}, {Text: "Force Buy BNB", CallbackData: "force_buy"}},
-			{{Text: "Daily Report Now", CallbackData: "daily_report_now"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("menu_actions")
 }
 
 func reportsKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Daily", CallbackData: "report_day"}, {Text: "Weekly", CallbackData: "report_week"}, {Text: "Monthly", CallbackData: "report_month"}},
-			{{Text: "Fees D", CallbackData: "fees_day"}, {Text: "Fees W", CallbackData: "fees_week"}, {Text: "Fees M", CallbackData: "fees_month"}},
-			{{Text: "PnL D", CallbackData: "pnl_day"}, {Text: "PnL W", CallbackData: "pnl_week"}, {Text: "PnL M", CallbackData: "pnl_month"}},
-			{{Text: "Trades D", CallbackData: "trades_day"}, {Text: "Trades W", CallbackData: "trades_week"}, {Text: "Trades M", CallbackData: "trades_month"}},
-			{{Text: "Leaders D", CallbackData: "leaders_day"}, {Text: "Leaders W", CallbackData: "leaders_week"}, {Text: "Leaders M", CallbackData: "leaders_month"}},
-			{{Text: "PnL 7d Table", CallbackData: "pnl_7d_table"}, {Text: "📉 PnL History", CallbackData: "pnl_history_menu"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("menu_reports")
 }
 
 func pnlHistoryMenuKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "History 7d", CallbackData: "pnl_history_7d"}, {Text: "History 30d", CallbackData: "pnl_history_30d"}},
-			{{Text: "History Custom", CallbackData: "pnl_history_custom"}},
-			{{Text: "Back", CallbackData: "menu_reports"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("pnl_history_menu")
 }
 
 func chartsKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Fees Chart", CallbackData: "chart_fees"}, {Text: "PnL Chart", CallbackData: "chart_pnl"}},
-			{{Text: "Predict 7d", CallbackData: "chart_predict_week"}, {Text: "Predict 30d", CallbackData: "chart_predict_month"}},
-			{{Text: "Predict Cum 7d", CallbackData: "chart_predict_cum_week"}, {Text: "Predict Cum 30d", CallbackData: "chart_predict_cum_month"}},
-			{{Text: "Predict Custom", CallbackData: "chart_predict_custom"}, {Text: "Predict Cum Custom", CallbackData: "chart_predict_cum_custom"}},
-			{{Text: "Compound 7d", CallbackData: "chart_compound_week"}, {Text: "Compound 30d", CallbackData: "chart_compound_month"}},
-			{{Text: "Compound Custom", CallbackData: "chart_compound_custom"}},
-			{{Text: "Cum Fees 24h", CallbackData: "chart_cum_fees_day"}, {Text: "Cum Fees 7d", CallbackData: "chart_cum_fees_week"}, {Text: "Cum Fees 30d", CallbackData: "chart_cum_fees_month"}},
-			{{Text: "Cum Profit 24h", CallbackData: "chart_cum_profit_day"}, {Text: "Cum Profit 48h", CallbackData: "chart_cum_profit_48h"}, {Text: "Cum Profit 72h", CallbackData: "chart_cum_profit_72h"}},
-			{{Text: "Cum Profit 7d", CallbackData: "chart_cum_profit_week"}, {Text: "Cum Profit 30d", CallbackData: "chart_cum_profit_month"}},
-			{{Text: "Cum Profit Custom", CallbackData: "chart_cum_profit_custom"}, {Text: "Custom History", CallbackData: "chart_cum_profit_custom_history"}},
-			{{Text: "Range From->To", CallbackData: "chart_cum_profit_range"}},
-			{{Text: "Range Date&Hour", CallbackData: "chart_cum_profit_date_range"}, {Text: "Calendar Range", CallbackData: "chart_cum_profit_calendar_range"}},
-			{{Text: "Range History", CallbackData: "chart_cum_profit_range_history"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("menu_charts")
 }
 
 func predictionDaysKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "7 days", CallbackData: "chart_predict_week"}, {Text: "14 days", CallbackData: "chart_predict_14d"}, {Text: "30 days", CallbackData: "chart_predict_month"}},
-			{{Text: "60 days", CallbackData: "chart_predict_60d"}, {Text: "Custom Input", CallbackData: "chart_predict_custom"}},
-			{{Text: "Cum 7 days", CallbackData: "chart_predict_cum_week"}, {Text: "Cum 30 days", CallbackData: "chart_predict_cum_month"}},
-			{{Text: "Cum 60 days", CallbackData: "chart_predict_cum_60d"}, {Text: "Cum Custom", CallbackData: "chart_predict_cum_custom"}},
-			{{Text: "Compound 7 days", CallbackData: "chart_compound_week"}, {Text: "Compound 30 days", CallbackData: "chart_compound_month"}},
-			{{Text: "Compound Custom", CallbackData: "chart_compound_custom"}},
-			{{Text: "Back", CallbackData: "menu_charts"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("prediction_days_menu")
 }
 
 func customCumProfitWindowKeyboard() *inlineKeyboardMarkup {
@@ -312,21 +257,7 @@ func customCumProfitHourKeyboard(phase string) *inlineKeyboardMarkup {
 }
 
 func settingsKeyboard() *inlineKeyboardMarkup {
-	return &inlineKeyboardMarkup{
-		InlineKeyboard: [][]inlineKeyboardButton{
-			{{Text: "Currency", CallbackData: "fee_currency_menu"}},
-			{{Text: "Chart Theme", CallbackData: "chart_theme_menu"}},
-			{{Text: "Chart Size", CallbackData: "chart_size_menu"}},
-			{{Text: "Chart Labels", CallbackData: "chart_labels_menu"}},
-			{{Text: "Chart Grid", CallbackData: "chart_grid_menu"}},
-			{{Text: "Chart Mode", CallbackData: "chart_mode_menu"}},
-			{{Text: "PnL Emojis", CallbackData: "pnl_emoji_menu"}},
-			{{Text: "Alert Settings", CallbackData: "alerts_menu"}},
-			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
-			{{Text: "Freqtrade Health", CallbackData: "freqtrade_health"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
-		},
-	}
+	return GetMenuRegistry().GetKeyboard("menu_settings")
 }
 
 func defaultReplyKeyboard() *replyKeyboardMarkup {

@@ -173,15 +173,55 @@ func (r *MenuRegistry) InitMenus() {
 	// Reports Menu
 	r.RegisterMenu(Menu{
 		ID:    "menu_reports",
-		Title: "Reports menu",
+		Title: "Reports Menu:",
+		Rows: [][]MenuItem{
+			{{Text: "Summaries", CallbackData: "menu_reports_summary"}, {Text: "PnL & History", CallbackData: "menu_reports_pnl"}},
+			{{Text: "Fees", CallbackData: "menu_reports_fees"}, {Text: "Trades", CallbackData: "menu_reports_trades"}},
+			{{Text: "Leaders", CallbackData: "menu_reports_leaders"}},
+			{{Text: "Back", CallbackData: "menu_main"}},
+		},
+	})
+
+	// Reports Submenus
+	r.RegisterMenu(Menu{
+		ID:    "menu_reports_summary",
+		Title: "Summary Reports:",
 		Rows: [][]MenuItem{
 			{{Text: "Daily", CallbackData: "report_day"}, {Text: "Weekly", CallbackData: "report_week"}, {Text: "Monthly", CallbackData: "report_month"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
+		},
+	})
+	r.RegisterMenu(Menu{
+		ID:    "menu_reports_fees",
+		Title: "Fee Reports:",
+		Rows: [][]MenuItem{
 			{{Text: "Fees D", CallbackData: "fees_day"}, {Text: "Fees W", CallbackData: "fees_week"}, {Text: "Fees M", CallbackData: "fees_month"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
+		},
+	})
+	r.RegisterMenu(Menu{
+		ID:    "menu_reports_pnl",
+		Title: "PnL Reports:",
+		Rows: [][]MenuItem{
 			{{Text: "PnL D", CallbackData: "pnl_day"}, {Text: "PnL W", CallbackData: "pnl_week"}, {Text: "PnL M", CallbackData: "pnl_month"}},
-			{{Text: "Trades D", CallbackData: "trades_day"}, {Text: "Trades W", CallbackData: "trades_week"}, {Text: "Trades M", CallbackData: "trades_month"}},
-			{{Text: "Leaders D", CallbackData: "leaders_day"}, {Text: "Leaders W", CallbackData: "leaders_week"}, {Text: "Leaders M", CallbackData: "leaders_month"}},
 			{{Text: "PnL 7d Table", CallbackData: "pnl_7d_table"}, {Text: "📉 PnL History", CallbackData: "pnl_history_menu"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
+		},
+	})
+	r.RegisterMenu(Menu{
+		ID:    "menu_reports_trades",
+		Title: "Trade Reports:",
+		Rows: [][]MenuItem{
+			{{Text: "Trades D", CallbackData: "trades_day"}, {Text: "Trades W", CallbackData: "trades_week"}, {Text: "Trades M", CallbackData: "trades_month"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
+		},
+	})
+	r.RegisterMenu(Menu{
+		ID:    "menu_reports_leaders",
+		Title: "Leaderboards:",
+		Rows: [][]MenuItem{
+			{{Text: "Leaders D", CallbackData: "leaders_day"}, {Text: "Leaders W", CallbackData: "leaders_week"}, {Text: "Leaders M", CallbackData: "leaders_month"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
 		},
 	})
 
@@ -199,41 +239,93 @@ func (r *MenuRegistry) InitMenus() {
 	// Charts Menu
 	r.RegisterMenu(Menu{
 		ID:    "menu_charts",
-		Title: "Charts menu",
+		Title: "Charts Menu:",
+		Rows: [][]MenuItem{
+			{{Text: "Portfolio", CallbackData: "menu_charts_portfolio"}, {Text: "Forecasts", CallbackData: "menu_charts_forecast"}},
+			{{Text: "Range Tools", CallbackData: "menu_charts_range"}},
+			{{Text: "Back", CallbackData: "menu_main"}},
+		},
+	})
+
+	// Charts Submenus
+	r.RegisterMenu(Menu{
+		ID:    "menu_charts_portfolio",
+		Title: "Portfolio Charts:",
 		Rows: [][]MenuItem{
 			{{Text: "Fees Chart", CallbackData: "chart_fees"}, {Text: "PnL Chart", CallbackData: "chart_pnl"}},
+			{{Text: "Cum Fees 24h", CallbackData: "chart_cum_fees_day"}, {Text: "Cum Fees 7d", CallbackData: "chart_cum_fees_week"}},
+			{{Text: "Cum Profit 24h", CallbackData: "chart_cum_profit_day"}, {Text: "Cum Profit 7d", CallbackData: "chart_cum_profit_week"}},
+			{{Text: "Back", CallbackData: "menu_charts"}},
+		},
+	})
+
+	r.RegisterMenu(Menu{
+		ID:    "menu_charts_forecast",
+		Title: "Forecast Charts:",
+		Rows: [][]MenuItem{
 			{{Text: "Predict 7d", CallbackData: "chart_predict_week"}, {Text: "Predict 30d", CallbackData: "chart_predict_month"}},
 			{{Text: "Predict Cum 7d", CallbackData: "chart_predict_cum_week"}, {Text: "Predict Cum 30d", CallbackData: "chart_predict_cum_month"}},
-			{{Text: "Predict Custom", CallbackData: "chart_predict_custom"}, {Text: "Predict Cum Custom", CallbackData: "chart_predict_cum_custom"}},
 			{{Text: "Compound 7d", CallbackData: "chart_compound_week"}, {Text: "Compound 30d", CallbackData: "chart_compound_month"}},
-			{{Text: "Compound Custom", CallbackData: "chart_compound_custom"}},
-			{{Text: "Cum Fees 24h", CallbackData: "chart_cum_fees_day"}, {Text: "Cum Fees 7d", CallbackData: "chart_cum_fees_week"}, {Text: "Cum Fees 30d", CallbackData: "chart_cum_fees_month"}},
-			{{Text: "Cum Profit 24h", CallbackData: "chart_cum_profit_day"}, {Text: "Cum Profit 48h", CallbackData: "chart_cum_profit_48h"}, {Text: "Cum Profit 72h", CallbackData: "chart_cum_profit_72h"}},
-			{{Text: "Cum Profit 7d", CallbackData: "chart_cum_profit_week"}, {Text: "Cum Profit 30d", CallbackData: "chart_cum_profit_month"}},
-			{{Text: "Cum Profit Custom", CallbackData: "chart_cum_profit_custom"}, {Text: "Custom History", CallbackData: "chart_cum_profit_custom_history"}},
+			{{Text: "More Options", CallbackData: "prediction_days_menu"}},
+			{{Text: "Back", CallbackData: "menu_charts"}},
+		},
+	})
+
+	r.RegisterMenu(Menu{
+		ID:    "menu_charts_range",
+		Title: "Range & Custom Tools:",
+		Rows: [][]MenuItem{
+			{{Text: "Custom Window", CallbackData: "chart_cum_profit_custom"}},
 			{{Text: "Range From->To", CallbackData: "chart_cum_profit_range"}},
-			{{Text: "Range Date&Hour", CallbackData: "chart_cum_profit_date_range"}, {Text: "Calendar Range", CallbackData: "chart_cum_profit_calendar_range"}},
-			{{Text: "Range History", CallbackData: "chart_cum_profit_range_history"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
+			{{Text: "Range Date/Hour", CallbackData: "chart_cum_profit_date_range"}},
+			{{Text: "Calendar Range", CallbackData: "chart_cum_profit_calendar_range"}},
+			{{Text: "History", CallbackData: "chart_cum_profit_range_history"}},
+			{{Text: "Back", CallbackData: "menu_charts"}},
 		},
 	})
 
 	// Settings Menu
 	r.RegisterMenu(Menu{
 		ID:    "menu_settings",
-		Title: "Settings menu",
+		Title: "Settings Menu:",
+		Rows: [][]MenuItem{
+			{{Text: "Display Settings", CallbackData: "menu_settings_display"}},
+			{{Text: "Chart Configuration", CallbackData: "menu_settings_charts"}},
+			{{Text: "System & Alerts", CallbackData: "menu_settings_system"}},
+			{{Text: "Back", CallbackData: "menu_main"}},
+		},
+	})
+
+	// Settings Submenus
+	r.RegisterMenu(Menu{
+		ID:    "menu_settings_display",
+		Title: "Display Settings:",
 		Rows: [][]MenuItem{
 			{{Text: "Currency", CallbackData: "fee_currency_menu"}},
-			{{Text: "Chart Theme", CallbackData: "chart_theme_menu"}},
-			{{Text: "Chart Size", CallbackData: "chart_size_menu"}},
-			{{Text: "Chart Labels", CallbackData: "chart_labels_menu"}},
-			{{Text: "Chart Grid", CallbackData: "chart_grid_menu"}},
-			{{Text: "Chart Mode", CallbackData: "chart_mode_menu"}},
 			{{Text: "PnL Emojis", CallbackData: "pnl_emoji_menu"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	})
+
+	r.RegisterMenu(Menu{
+		ID:    "menu_settings_charts",
+		Title: "Chart Settings:",
+		Rows: [][]MenuItem{
+			{{Text: "Theme", CallbackData: "chart_theme_menu"}, {Text: "Size", CallbackData: "chart_size_menu"}},
+			{{Text: "Labels", CallbackData: "chart_labels_menu"}, {Text: "Grid", CallbackData: "chart_grid_menu"}},
+			{{Text: "Label Mode", CallbackData: "chart_mode_menu"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	})
+
+	r.RegisterMenu(Menu{
+		ID:    "menu_settings_system",
+		Title: "System Settings:",
+		Rows: [][]MenuItem{
 			{{Text: "Alert Settings", CallbackData: "alerts_menu"}},
-			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
 			{{Text: "Freqtrade Health", CallbackData: "freqtrade_health"}},
-			{{Text: "Back", CallbackData: "menu_main"}},
+			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
 		},
 	})
 

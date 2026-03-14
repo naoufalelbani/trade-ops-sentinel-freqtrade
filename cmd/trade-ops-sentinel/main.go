@@ -80,20 +80,9 @@ func main() {
 	if state.getDisplayCurrency(cfg.FeeMainCurrency) == "" {
 		state.setDisplayCurrency(cfg.FeeMainCurrency)
 	}
-	chartTheme := state.getChartTheme("dark")
-	state.setChartTheme(chartTheme)
-	chartSize := state.getChartSize("standard")
-	state.setChartSize(chartSize)
-	chartLabelsEnabled := state.getChartLabelsEnabled(true)
-	state.setChartLabelsEnabled(chartLabelsEnabled)
-	chartGridEnabled := state.getChartGridEnabled(true)
-	state.setChartGridEnabled(chartGridEnabled)
-	pnlEmojisEnabled := state.getPnLEmojisEnabled(true)
-	state.setPnLEmojisEnabled(pnlEmojisEnabled)
+
 	heartbeatAlertsEnabled := state.getHeartbeatAlertsEnabled(cfg.HeartbeatAlertEnabled)
 	apiFailureAlertsEnabled := state.getAPIFailureAlertsEnabled(cfg.APIFailureAlertEnabled)
-	state.setHeartbeatAlertsEnabled(heartbeatAlertsEnabled)
-	state.setAPIFailureAlertsEnabled(apiFailureAlertsEnabled)
 	if runtimeAlerts != nil {
 		runtimeAlerts.setHeartbeatAlertsEnabled(heartbeatAlertsEnabled)
 		runtimeAlerts.setAPIFailureAlertsEnabled(apiFailureAlertsEnabled)

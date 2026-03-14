@@ -47,14 +47,13 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		}
 		rawText := strings.TrimSpace(upd.Message.Text)
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCompoundPredictionDays(upd.Message.Chat.ID) {
-			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingCompoundPredictionDays(upd.Message.Chat.ID, false)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Compound prediction input canceled.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Compound prediction input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			days, ok := parsePredictionDaysInput(rawText)
 			if !ok {
-				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), GetMenuRegistry().GetKeyboard("prediction_days_menu"))
 				return
 			}
 			setAwaitingCompoundPredictionDays(upd.Message.Chat.ID, false)
@@ -63,7 +62,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			chartGrid := state.getChartGridEnabled(true)
 			refreshAction := "chart_compound_custom_" + strconv.Itoa(days) + "d"
 			if err := sendCompoundPredictionChart(ctx, cfg, state, binance, notifier, upd.Message.Chat.ID, days, refreshAction, chartTheme, chartSize, chartGrid); err != nil {
-				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("compound chart error: %v", err), chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("compound chart error: %v", err), GetMenuRegistry().GetKeyboard("menu_charts"))
 			}
 			return
 		}
@@ -71,12 +70,12 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			mode := predictionModeForChat(upd.Message.Chat.ID)
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingPredictionDays(upd.Message.Chat.ID, "", false)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Prediction input canceled.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Prediction input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			days, ok := parsePredictionDaysInput(rawText)
 			if !ok {
-				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), predictionDaysKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("Invalid days. Type a number between `%d` and `%d` (or `cancel`).", minPredictionDays, maxPredictionDays), GetMenuRegistry().GetKeyboard("prediction_days_menu"))
 				return
 			}
 			setAwaitingPredictionDays(upd.Message.Chat.ID, "", false)
@@ -90,52 +89,52 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 				cumulative = true
 			}
 			if err := sendPredictionChart(ctx, cfg, state, binance, notifier, upd.Message.Chat.ID, days, cumulative, refreshAction, chartTheme, chartSize, chartGrid); err != nil {
-				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("prediction chart error: %v", err), chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("prediction chart error: %v", err), GetMenuRegistry().GetKeyboard("menu_charts"))
 			}
 			return
 		}
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCustomCumProfitDateFrom(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				clearCustomCumProfitDateRangeState(upd.Message.Chat.ID)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Date range input canceled.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Date range input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			from, ok := parseUserDateTime(rawText)
 			if !ok {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid FROM date. Use: `YYYY-MM-DD HH:MM` (UTC), example `2026-03-05 14:30`.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid FROM date. Use: `YYYY-MM-DD HH:MM` (UTC), example `2026-03-05 14:30`.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			if from.After(time.Now().UTC()) {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "FROM date cannot be in the future.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "FROM date cannot be in the future.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			setAwaitingCustomCumProfitDateTo(upd.Message.Chat.ID, from)
-			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("FROM set to %s UTC. Now type TO date/time (`YYYY-MM-DD HH:MM`).", from.Format("2006-01-02 15:04")), chartsKeyboard())
+			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("FROM set to %s UTC. Now type TO date/time (`YYYY-MM-DD HH:MM`).", from.Format("2006-01-02 15:04")), GetMenuRegistry().GetKeyboard("menu_charts"))
 			return
 		}
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCustomCumProfitDateTo(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				clearCustomCumProfitDateRangeState(upd.Message.Chat.ID)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Date range input canceled.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Date range input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			to, ok := parseUserDateTime(rawText)
 			if !ok {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid TO date. Use: `YYYY-MM-DD HH:MM` (UTC), example `2026-03-06 09:00`.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid TO date. Use: `YYYY-MM-DD HH:MM` (UTC), example `2026-03-06 09:00`.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			from, okFrom := getCustomCumProfitDateFrom(upd.Message.Chat.ID)
 			if !okFrom {
 				clearCustomCumProfitDateRangeState(upd.Message.Chat.ID)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Please start again: choose date range first.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Please start again: choose date range first.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			if !to.After(from) {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid TO date. TO must be after FROM.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid TO date. TO must be after FROM.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			if to.After(time.Now().UTC()) {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "TO date cannot be in the future.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "TO date cannot be in the future.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			clearCustomCumProfitDateRangeState(upd.Message.Chat.ID)
@@ -150,7 +149,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		if !strings.HasPrefix(rawText, "/") && isAwaitingCustomCumProfitWindow(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingCustomCumProfitWindow(upd.Message.Chat.ID, false)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Custom cumulative profit input canceled.", chartsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Custom cumulative profit input canceled.", GetMenuRegistry().GetKeyboard("menu_charts"))
 				return
 			}
 			_, token, label, ok := parseCumProfitWindowInput(rawText)
@@ -172,7 +171,7 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		if !strings.HasPrefix(rawText, "/") && isAwaitingFreqtradeRestartInput(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingFreqtradeRestartInput(upd.Message.Chat.ID, false)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Freqtrade restart input canceled.", defaultKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Freqtrade restart input canceled.", GetMenuRegistry().GetKeyboard("menu_main"))
 				return
 			}
 			dur, err := time.ParseDuration(rawText)
@@ -188,25 +187,25 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 				}
 			}
 			if err != nil || dur <= 0 {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid duration. Type like `10m`, `1h`, `1d` (or `cancel`).", defaultKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid duration. Type like `10m`, `1h`, `1d` (or `cancel`).", GetMenuRegistry().GetKeyboard("menu_main"))
 				return
 			}
 			setAwaitingFreqtradeRestartInput(upd.Message.Chat.ID, false)
 			restartAt := time.Now().UTC().Add(dur)
 			state.setFreqtradeRestartAt(restartAt)
 			_ = state.save()
-			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("✅ Freqtrade restart scheduled at %s UTC (in %v).", restartAt.Format("15:04:05"), dur.Round(time.Second)), defaultKeyboard())
+			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("✅ Freqtrade restart scheduled at %s UTC (in %v).", restartAt.Format("15:04:05"), dur.Round(time.Second)), GetMenuRegistry().GetKeyboard("menu_main"))
 			return
 		}
 		if !strings.HasPrefix(rawText, "/") && isAwaitingPnLHistoryInput(upd.Message.Chat.ID) {
 			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
 				setAwaitingPnLHistoryInput(upd.Message.Chat.ID, false)
-				safeSendToChat(notifier, upd.Message.Chat.ID, "PnL History input canceled.", reportsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "PnL History input canceled.", GetMenuRegistry().GetKeyboard("menu_reports"))
 				return
 			}
 			days, err := strconv.Atoi(strings.TrimSuffix(strings.ToLower(rawText), "d"))
 			if err != nil || days <= 0 {
-				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid number of days. Type like `14`, `60`, `90d` (or `cancel`).", reportsKeyboard())
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid number of days. Type like `14`, `60`, `90d` (or `cancel`).", GetMenuRegistry().GetKeyboard("menu_reports"))
 				return
 			}
 			setAwaitingPnLHistoryInput(upd.Message.Chat.ID, false)
@@ -289,7 +288,7 @@ func sendPredictionChart(ctx context.Context, cfg Config, state *MonitorState, b
 		labels, history, forecast, unit = predictPnLSeries(ctx, cfg, state, binance, horizonDays)
 	}
 	if len(labels) == 0 {
-		safeSendToChat(notifier, chatID, "Not enough daily data to build prediction yet (need at least ~14 daily points).", chartsKeyboard())
+		safeSendToChat(notifier, chatID, "Not enough daily data to build prediction yet (need at least ~14 daily points).", GetMenuRegistry().GetKeyboard("menu_charts"))
 		return nil
 	}
 	title := fmt.Sprintf("PnL Forecast (next %dd)", horizonDays)
@@ -304,8 +303,8 @@ func sendPredictionChart(ctx context.Context, cfg Config, state *MonitorState, b
 func safeSendPnLHistoryReport(ctx context.Context, cfg Config, binance *BinanceClient, notifier *TelegramNotifier, chatID int64, days int, state *MonitorState) {
 	report, err := buildPnLHistoryTable(ctx, cfg, state, binance, days)
 	if err != nil {
-		safeSendToChat(notifier, chatID, fmt.Sprintf("PnL History error: %v", err), pnlHistoryMenuKeyboard())
+		safeSendToChat(notifier, chatID, fmt.Sprintf("PnL History error: %v", err), GetMenuRegistry().GetKeyboard("pnl_history_menu"))
 		return
 	}
-	safeSendPreLargeToChat(notifier, chatID, report, pnlHistoryMenuKeyboard())
+	safeSendPreLargeToChat(notifier, chatID, report, GetMenuRegistry().GetKeyboard("pnl_history_menu"))
 }
