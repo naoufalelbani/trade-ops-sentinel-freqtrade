@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
  
+## [v0.3.0] - 2026-03-14
+
+### Changed
+
+- Major architectural refactoring of the Telegram bot interaction system:
+  - Centralized menu management via `MenuRegistry` and `MenuContext`.
+  - Decoupled command and callback handling into a modular registry pattern.
+  - Unified slash command (`/menu`, `/status`, etc.) and inline button handling.
+  - Simplified bot state and configuration access within handlers.
+- Bumped default image/version references to `v0.3.0` in Docker Compose, `.env.example`, and README.
+
 ## [v0.2.11] - 2026-03-13
  
 ### Added

@@ -72,7 +72,7 @@ docker compose up -d
 Optional: set a custom image in `.env`:
 
 ```env
-TRADE_OPS_IMAGE=ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.11
+TRADE_OPS_IMAGE=ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.3.0
 ```
 
 For local rebuild from source, use the local override file:
@@ -104,7 +104,7 @@ Build and push multi-arch image:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.2.11 \
+  -t ghcr.io/naoufalelbani/trade-ops-sentinel-freqtrade:v0.3.0 \
   --push .
 ```
 
@@ -193,7 +193,7 @@ When using `FREQTRADE`, the app requires:
 | `NOTIFY_ON_EVERY_CHECK` | `false` | Send update each cycle |
 | `BINANCE_BASE_URL` | `https://api.binance.com` | Binance API base URL (must be `https`) |
 | `TELEGRAM_BASE_URL` | `https://api.telegram.org` | Telegram API base URL (must be `https`) |
-| `APP_VERSION` | `v0.2.11` | Build/version label shown on startup and `/version` |
+| `APP_VERSION` | `v0.3.0` | Build/version label shown on startup and `/version` |
 | `APP_COMMIT` | `local` | Build commit shown on startup and `/version` |
 | `APP_BUILD_DATE` | `unknown` | Build timestamp shown on startup and `/version` |
 | `FREQTRADE_ALERT_ON_STOPPED` | `true` | Alert when Freqtrade bot is in `stopped` state |
