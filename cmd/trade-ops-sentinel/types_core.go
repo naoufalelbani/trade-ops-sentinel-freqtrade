@@ -114,6 +114,7 @@ type persistState struct {
 	APIFailureAlertsEnabled *bool         `json:"api_failure_alerts_enabled,omitempty"`
 	CustomCumWin            []string      `json:"custom_cum_windows,omitempty"`
 	CustomRanges            []rangeRecord `json:"custom_ranges,omitempty"`
+	ChartLabelMode          string        `json:"chart_label_mode,omitempty"`
 	LastUpdated             int64         `json:"last_updated"`
 	FreqtradeRestartAt      int64         `json:"ft_restart_at,omitempty"`
 }
@@ -143,6 +144,7 @@ type MonitorState struct {
 	stateFile                  string
 	maxSnapshots               int
 	ftRestartAt                time.Time
+	chartLabelMode             string
 }
 
 type BinanceClient struct {
@@ -237,6 +239,13 @@ var customCumProfitCalendarRange = struct {
 }
 
 var customFreqtradeRestartInput = struct {
+	mu       sync.Mutex
+	awaiting map[int64]bool
+}{
+	awaiting: map[int64]bool{},
+}
+
+var customPnLHistoryInput = struct {
 	mu       sync.Mutex
 	awaiting map[int64]bool
 }{

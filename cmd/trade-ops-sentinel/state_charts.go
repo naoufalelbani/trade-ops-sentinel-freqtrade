@@ -13,8 +13,8 @@ func buildLineChartURL(title string, labels []string, values []float64, unit, th
 	return charts.BuildLineChartURL(title, labels, values, unit, theme, size, showLabels, showGrid)
 }
 
-func buildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
-	return charts.BuildCumulativeProfitChartURL(title, labels, values, unit, theme, size, showLabels, showGrid)
+func buildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size, mode string, showLabels, showGrid bool) string {
+	return charts.BuildCumulativeProfitChartURL(title, labels, values, unit, theme, size, mode, showLabels, showGrid)
 }
 
 func buildForecastChartURL(title string, labels []string, history, forecast []float64, unit, theme, size string, showGrid bool) string {

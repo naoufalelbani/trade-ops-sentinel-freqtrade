@@ -146,7 +146,7 @@ func BuildLineChartURL(title string, labels []string, values []float64, unit, th
 	return fmt.Sprintf("https://quickchart.io/chart?backgroundColor=%s&width=%d&height=%d&c=%s", bgColor, width, height, q)
 }
 
-func BuildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size string, showLabels, showGrid bool) string {
+func BuildCumulativeProfitChartURL(title string, labels []string, values []float64, unit, theme, size, labelMode string, showLabels, showGrid bool) string {
 	if len(labels) == 0 {
 		return ""
 	}
@@ -154,10 +154,29 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 	points := make([]map[string]any, 0, len(values))
 	labelAlign := make([]string, 0, len(values))
 	labelColors := make([]string, 0, len(values))
+	labelOffsets := make([]int, 0, len(values))
+
+	mode := strings.ToLower(strings.TrimSpace(labelMode))
+	if mode == "" {
+		mode = "staggered"
+	}
+
+	// Staggering logic (only for "staggered" mode)
+	lastAlign := ""
+	staggerStep := 0
+	densityFactor := 1
+	if len(values) > 50 {
+		densityFactor = 2
+	}
+	if len(values) > 100 {
+		densityFactor = 3
+	}
+
 	for i, v := range values {
 		diffLabel := ""
 		align := "top"
 		color := "#22c55e"
+
 		if i > 0 {
 			d := v - values[i-1]
 			rounded := math.Round(d*100) / 100
@@ -169,10 +188,24 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 				}
 			}
 		}
+
+		offset := 4
+		if mode == "staggered" {
+			if i > 0 && align == lastAlign {
+				staggerStep = (staggerStep + 1) % (densityFactor + 1)
+			} else {
+				staggerStep = 0
+			}
+			offset = 4 + (staggerStep * 12)
+		}
+
 		points = append(points, map[string]any{"y": v, "label": diffLabel})
 		labelAlign = append(labelAlign, align)
 		labelColors = append(labelColors, color)
+		labelOffsets = append(labelOffsets, offset)
+		lastAlign = align
 	}
+
 	titleColor := "#ffffff"
 	legendColor := "#e5e7eb"
 	tickColor := "#d1d5db"
@@ -192,6 +225,20 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 	width, height := chartDimensions(size)
 	xGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
 	yGrid := map[string]any{"display": showGrid, "color": gridColor, "lineWidth": 1.1, "drawBorder": false}
+
+	rotation := 0
+	topPadding := 8
+	if mode == "vertical" {
+		rotation = -90
+		topPadding = 40
+	} else if mode == "staggered" {
+		topPadding = 20
+	}
+
+	offsetsJSON, _ := json.Marshal(labelOffsets)
+	alignsJSON, _ := json.Marshal(labelAlign)
+	colorsJSON, _ := json.Marshal(labelColors)
+
 	cfg := map[string]any{
 		"type": "line",
 		"data": map[string]any{
@@ -203,16 +250,55 @@ func BuildCumulativeProfitChartURL(title string, labels []string, values []float
 				"fill": false, "stepped": true, "tension": 0, "borderWidth": 2,
 			}},
 		},
+		"plugins": []any{
+			map[string]any{
+				"id": "staggerLines",
+				"afterDatasetsDraw": fmt.Sprintf(`function(chart) {
+					const ctx = chart.ctx;
+					const mode = "%s";
+					if (mode !== "staggered") return;
+					const meta = chart.getDatasetMeta(0);
+					const offsets = %s;
+					const aligns = %s;
+					const colors = %s;
+					ctx.save();
+					ctx.setLineDash([2, 2]);
+					ctx.lineWidth = 1;
+					meta.data.forEach((point, i) => {
+						const offset = offsets[i];
+						if (offset <= 6) return;
+						ctx.strokeStyle = colors[i] || '#666';
+						ctx.beginPath();
+						const align = aligns[i];
+						const startY = point.y;
+						const endY = (align === 'top') ? (point.y - offset + 2) : (point.y + offset - 2);
+						ctx.moveTo(point.x, startY);
+						ctx.lineTo(point.x, endY);
+						ctx.stroke();
+					});
+					ctx.restore();
+				}`, mode, string(offsetsJSON), string(alignsJSON), string(colorsJSON)),
+			},
+		},
 		"options": map[string]any{
 			"layout": map[string]any{
 				"padding": map[string]any{
-					"left": 10, "right": 44, "top": 8, "bottom": 6,
+					"left": 10, "right": 44, "top": topPadding, "bottom": 6,
 				},
 			},
 			"plugins": map[string]any{
 				"title":      map[string]any{"display": true, "text": title, "color": titleColor, "font": map[string]any{"size": 20}},
 				"legend":     map[string]any{"display": true, "labels": map[string]any{"color": legendColor}},
-				"datalabels": map[string]any{"display": showLabels, "align": labelAlign, "anchor": "end", "offset": 4, "font": map[string]any{"size": 10, "weight": "bold"}, "color": labelColors},
+				"datalabels": map[string]any{
+					"display":  showLabels,
+					"overlap":  true,
+					"align":    labelAlign,
+					"anchor":   "end",
+					"offset":   labelOffsets,
+					"rotation": rotation,
+					"font":     map[string]any{"size": 10, "weight": "bold"},
+					"color":    labelColors,
+				},
 			},
 			"scales": map[string]any{
 				"x": map[string]any{"offset": true, "ticks": map[string]any{"color": tickColor, "maxTicksLimit": 8}, "grid": xGrid, "title": map[string]any{"display": false}},

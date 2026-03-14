@@ -279,7 +279,7 @@ When using `FREQTRADE`, the app requires:
 ### Inline Menus
 
 - Actions: refill now, force buy, report now.
-- Reports: daily/weekly/monthly reports, fees, pnl, trades, leaders, PnL table.
+- Reports: daily/weekly/monthly reports, fees, pnl, trades, leaders, PnL table, and <b>PnL History</b>.
 - Charts: fee/pnl charts, cumulative views, custom windows, date/range tools.
 - Settings: fee currency, chart theme (dark/light), alert toggles, and Freqtrade health.
 

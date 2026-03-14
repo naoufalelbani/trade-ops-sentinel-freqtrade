@@ -29,7 +29,8 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 		if err != nil {
 			return "", err
 		}
-		rows, counts = freqtradeDailyPnlRows(trades, days)
+		balances := state.DailyBalances(days)
+		rows, counts = freqtradeDailyPnlRows(trades, days, balances)
 		spot = estimateFreqtradeFeeAssetPrice(trades, cfg.BNBAsset)
 	} else if tradeStore != nil {
 		c, err := tradeStore.DailyTradeCounts(cfg.TrackedSymbols, days)
@@ -136,7 +137,70 @@ func buildDailyPnlTable(ctx context.Context, cfg Config, state *MonitorState, da
 	return b.String(), nil
 }
 
-func freqtradeDailyPnlRows(trades []freqtradeTrade, days int) ([]dailyPnlRow, map[string]int) {
+func buildPnLHistoryTable(ctx context.Context, cfg Config, state *MonitorState, binance *BinanceClient, days int) (string, error) {
+	rows := state.dailyPnlRows(days)
+	counts := map[string]int{}
+	displayCurrency := state.getDisplayCurrency(cfg.FeeMainCurrency)
+	spot := 0.0
+	if cfg.FreqtradeHistoryMode {
+		trades, err := getFreqtradeTrades30dCached(ctx, cfg)
+		if err != nil {
+			return "", err
+		}
+		balances := state.DailyBalances(days)
+		rows, counts = freqtradeDailyPnlRows(trades, days, balances)
+		spot = estimateFreqtradeFeeAssetPrice(trades, cfg.BNBAsset)
+	} else if tradeStore != nil {
+		c, err := tradeStore.DailyTradeCounts(cfg.TrackedSymbols, days)
+		if err != nil {
+			logIfErr("sqlite.daily_trade_counts", err)
+		} else {
+			counts = c
+		}
+	}
+
+	if spot <= 0 {
+		spot = spotForDisplay(ctx, cfg, binance, 24*time.Hour)
+	}
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("PnL History over the last %d days:\n\n", days))
+	b.WriteString(fmt.Sprintf("%-16s %-12s %-10s %-10s\n", "Day (count)", displayCurrency, "USD", "Profit %"))
+	b.WriteString(fmt.Sprintf("%-16s %-12s %-10s %-10s\n", "--------------", "-----------", "---------", "----------"))
+
+	for _, r := range rows {
+		count := counts[r.Day]
+		if count <= 0 {
+			continue
+		}
+		dayLabel := fmt.Sprintf("%s (%d)", r.Day, count)
+
+		pnlVal, unit, ok := quoteToDisplay(r.PnL, cfg, displayCurrency, spot)
+		if !ok {
+			pnlVal = r.PnL
+			unit = strings.ToUpper(cfg.QuoteAsset)
+		}
+		displayCell := fmt.Sprintf("%s %s", formatSignedNoPlus(pnlVal, 3), unit)
+
+		// Calculate "USD" equivalent. 
+		// If displayCurrency is USDT/USDC etc, it's already USD-like.
+		// If it's BNB, we use spot to convert to quote, then assume quote is USD-like.
+		usdVal := r.PnL
+		if strings.EqualFold(cfg.QuoteAsset, "USDT") || strings.EqualFold(cfg.QuoteAsset, "USDC") || strings.EqualFold(cfg.QuoteAsset, "BUSD") {
+			// Already USD-like
+		} else {
+			// TODO: cross-rate to USDT if needed, but for now we assume quote is the base.
+		}
+		usdCell := fmt.Sprintf("%s USD", formatSignedNoPlus(usdVal, 2))
+
+		pctCell := fmt.Sprintf("%s%%", formatSignedNoPlus(r.Pct, 2))
+		b.WriteString(fmt.Sprintf("%-16s %-12s %-10s %-10s\n", dayLabel, displayCell, usdCell, pctCell))
+	}
+
+	return b.String(), nil
+}
+
+func freqtradeDailyPnlRows(trades []freqtradeTrade, days int, balances map[string]float64) ([]dailyPnlRow, map[string]int) {
 	type agg struct {
 		pnl   float64
 		buy   float64
@@ -175,7 +239,10 @@ func freqtradeDailyPnlRows(trades []freqtradeTrade, days int) ([]dailyPnlRow, ma
 		day := now.Add(-time.Duration(i) * 24 * time.Hour).Format("2006-01-02")
 		a := byDay[day]
 		pct := 0.0
-		if a.buy > 0 {
+		if bal, ok := balances[day]; ok && bal > 0 {
+			pct = (a.pnl / bal) * 100
+		} else if a.buy > 0 {
+			// Fallback to stake if balance not available for some reason
 			pct = (a.pnl / a.buy) * 100
 		}
 		rows = append(rows, dailyPnlRow{Day: day, PnL: a.pnl, Pct: pct})

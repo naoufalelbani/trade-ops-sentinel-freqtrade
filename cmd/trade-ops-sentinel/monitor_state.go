@@ -189,6 +189,30 @@ func (s *MonitorState) setChartGridEnabled(v bool) {
 	s.hasChartGridEnabled = true
 }
 
+func (s *MonitorState) getChartLabelMode(defaultVal string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v := strings.ToLower(strings.TrimSpace(s.chartLabelMode))
+	if v == "horizontal" || v == "vertical" || v == "staggered" {
+		return v
+	}
+	d := strings.ToLower(strings.TrimSpace(defaultVal))
+	if d == "horizontal" || d == "vertical" {
+		return d
+	}
+	return "staggered"
+}
+
+func (s *MonitorState) setChartLabelMode(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t := strings.ToLower(strings.TrimSpace(v))
+	if t != "horizontal" && t != "vertical" && t != "staggered" {
+		return
+	}
+	s.chartLabelMode = t
+}
+
 func (s *MonitorState) getPnLEmojisEnabled(defaultVal bool) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -272,6 +296,7 @@ func (s *MonitorState) settingsSummary(cfg Config, alerts *alertManager) string 
 		fmt.Sprintf("Chart size=%s", chartSize),
 		fmt.Sprintf("Chart labels=%t", chartLabelsEnabled),
 		fmt.Sprintf("Chart grid=%t", chartGridEnabled),
+		fmt.Sprintf("Chart mode=%s", strings.Title(s.getChartLabelMode("staggered"))),
 		fmt.Sprintf("PnL emojis=%t", pnlEmojisEnabled),
 		fmt.Sprintf("Heartbeat alerts=%t", heartbeatEnabled),
 		fmt.Sprintf("API failure alerts=%t", apiEnabled),
@@ -673,6 +698,28 @@ func (s *MonitorState) pnlSeriesByDayRangeActive(start, end time.Time) ([]string
 	return labels, values
 }
 
+func (s *MonitorState) DailyBalances(days int) map[string]float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Return the earliest PortfolioQuote we have for each day.
+	// This approximates the start-of-day balance.
+	buckets := map[string]Snapshot{}
+	for _, sn := range s.snapshots {
+		day := time.UnixMilli(sn.TS).UTC().Format("2006-01-02")
+		prev, ok := buckets[day]
+		if !ok || sn.TS < prev.TS {
+			buckets[day] = sn
+		}
+	}
+
+	out := make(map[string]float64, len(buckets))
+	for day, sn := range buckets {
+		out[day] = sn.PortfolioQuote
+	}
+	return out
+}
+
 func (s *MonitorState) dailyPnlRows(days int) []dailyPnlRow {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -727,6 +774,7 @@ func (s *MonitorState) save() error {
 		ChartSize:    s.chartSize,
 		CustomCumWin: append([]string(nil), s.customCumWin...),
 		CustomRanges: append([]rangeRecord(nil), s.customRanges...),
+		ChartLabelMode: s.chartLabelMode,
 	}
 	if s.hasChartLabelsEnabled {
 		v := s.chartLabelsEnabled
@@ -817,6 +865,7 @@ func (s *MonitorState) load() error {
 	}
 	s.customCumWin = append([]string(nil), p.CustomCumWin...)
 	s.customRanges = append([]rangeRecord(nil), p.CustomRanges...)
+	s.chartLabelMode = p.ChartLabelMode
 	if len(s.snapshots) > s.maxSnapshots {
 		drop := len(s.snapshots) - s.maxSnapshots
 		s.snapshots = s.snapshots[drop:]

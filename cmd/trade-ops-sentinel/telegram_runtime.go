@@ -198,6 +198,21 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			safeSendToChat(notifier, upd.Message.Chat.ID, fmt.Sprintf("✅ Freqtrade restart scheduled at %s UTC (in %v).", restartAt.Format("15:04:05"), dur.Round(time.Second)), defaultKeyboard())
 			return
 		}
+		if !strings.HasPrefix(rawText, "/") && isAwaitingPnLHistoryInput(upd.Message.Chat.ID) {
+			if strings.EqualFold(rawText, "cancel") || strings.EqualFold(rawText, "back") {
+				setAwaitingPnLHistoryInput(upd.Message.Chat.ID, false)
+				safeSendToChat(notifier, upd.Message.Chat.ID, "PnL History input canceled.", reportsKeyboard())
+				return
+			}
+			days, err := strconv.Atoi(strings.TrimSuffix(strings.ToLower(rawText), "d"))
+			if err != nil || days <= 0 {
+				safeSendToChat(notifier, upd.Message.Chat.ID, "Invalid number of days. Type like `14`, `60`, `90d` (or `cancel`).", reportsKeyboard())
+				return
+			}
+			setAwaitingPnLHistoryInput(upd.Message.Chat.ID, false)
+			safeSendPnLHistoryReport(ctx, cfg, binance, notifier, upd.Message.Chat.ID, days, state)
+			return
+		}
 		text := normalizeCommand(upd.Message.Text)
 		switch text {
 		case "/menu":
@@ -293,10 +308,26 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 	switch data {
 	case "menu", "menu_main":
 		safeSendToChat(notifier, chatID, "Main menu", defaultKeyboard())
+		return
 	case "menu_actions":
 		safeSendToChat(notifier, chatID, "Actions menu", actionsKeyboard())
+		return
 	case "menu_reports":
 		safeSendToChat(notifier, chatID, "Reports menu", reportsKeyboard())
+		return
+	case "pnl_history_menu":
+		safeSendToChat(notifier, chatID, "PnL History menu", pnlHistoryMenuKeyboard())
+		return
+	case "pnl_history_7d":
+		safeSendPnLHistoryReport(ctx, cfg, binance, notifier, chatID, 7, state)
+		return
+	case "pnl_history_30d":
+		safeSendPnLHistoryReport(ctx, cfg, binance, notifier, chatID, 30, state)
+		return
+	case "pnl_history_custom":
+		setAwaitingPnLHistoryInput(chatID, true)
+		safeSendToChat(notifier, chatID, "Enter number of days for PnL History (e.g. `14`, `90`):", pnlHistoryMenuKeyboard())
+		return
 	case "menu_charts":
 		safeSendToChat(notifier, chatID, "Charts menu", chartsKeyboard())
 	case "menu_settings":
@@ -467,6 +498,27 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 		_ = state.save()
 		recordSettingChange("pnl_emojis_enabled", old, "false")
 		showSettingsMenu("PnL emojis disabled.")
+	case "chart_mode_menu":
+		current := state.getChartLabelMode("staggered")
+		safeSendToChat(notifier, chatID, fmt.Sprintf("Choose chart label mode (current: %s):", strings.Title(current)), chartLabelModeKeyboard(current))
+	case "chart_mode_horizontal":
+		old := state.getChartLabelMode("staggered")
+		state.setChartLabelMode("horizontal")
+		_ = state.save()
+		recordSettingChange("chart_label_mode", old, "horizontal")
+		showSettingsMenu("Chart labels set to Horizontal.")
+	case "chart_mode_vertical":
+		old := state.getChartLabelMode("staggered")
+		state.setChartLabelMode("vertical")
+		_ = state.save()
+		recordSettingChange("chart_label_mode", old, "vertical")
+		showSettingsMenu("Chart labels set to Vertical.")
+	case "chart_mode_staggered":
+		old := state.getChartLabelMode("staggered")
+		state.setChartLabelMode("staggered")
+		_ = state.save()
+		recordSettingChange("chart_label_mode", old, "staggered")
+		showSettingsMenu("Chart labels set to Staggered.")
 	case "alerts_menu", "alerts_settings", "alert_settings", "settings_alerts":
 		heartbeatEnabled := cfg.HeartbeatAlertEnabled
 		apiEnabled := cfg.APIFailureAlertEnabled
@@ -686,7 +738,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			return
 		}
 		title := fmt.Sprintf("Cumulative Fees (%s)", window)
-		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+		chartMode := state.getChartLabelMode("staggered")
+		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartMode, chartLabels, chartGrid)
 		safeSendPhotoToChat(notifier, chatID, chartURL, title)
 	case "chart_pnl":
 		labels, values := state.pnlSeriesLastNDays(30)
@@ -714,7 +767,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			return
 		}
 		title := fmt.Sprintf("Cumulative Profit (%s)", window)
-		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+		chartMode := state.getChartLabelMode("staggered")
+		chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartMode, chartLabels, chartGrid)
 		safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(data))
 	case "chart_cum_profit_custom":
 		setAwaitingCustomCumProfitWindow(chatID, true)
@@ -788,7 +842,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 				return
 			}
 			title := fmt.Sprintf("Cumulative Profit (%s, %s)", label, modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+			chartMode := state.getChartLabelMode("staggered")
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartMode, chartLabels, chartGrid)
 			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		case telegramiface.CallbackCalendarIgnore:
@@ -948,7 +1003,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			_ = state.save()
 			clearRangeFromSelection(chatID)
 			title := fmt.Sprintf("Cumulative Profit (%s ago -> %s ago, %s)", fromLabel, toLabel, modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+			chartMode := state.getChartLabelMode("staggered")
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartMode, chartLabels, chartGrid)
 			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		case telegramiface.CallbackRangeHistory:
@@ -1001,7 +1057,8 @@ func handleTelegramUpdate(ctx context.Context, cfg Config, binance *BinanceClien
 			state.addCustomRange(from, to)
 			_ = state.save()
 			title := fmt.Sprintf("Cumulative Profit (%s -> %s, %s)", from.Format("2006-01-02 15:04"), to.Format("2006-01-02 15:04"), modeLabel)
-			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartLabels, chartGrid)
+			chartMode := state.getChartLabelMode("staggered")
+			chartURL := buildCumulativeProfitChartURL(title, labels, values, unit, chartTheme, chartSize, chartMode, chartLabels, chartGrid)
 			safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(route.Raw))
 			return
 		default:
@@ -1048,4 +1105,13 @@ func sendPredictionChart(ctx context.Context, cfg Config, state *MonitorState, b
 	chartURL := buildForecastChartURL(title, labels, history, forecast, unit, chartTheme, chartSize, chartGrid)
 	safeSendPhotoToChatWithMarkup(notifier, chatID, chartURL, title, chartRefreshKeyboard(refreshAction))
 	return nil
+}
+
+func safeSendPnLHistoryReport(ctx context.Context, cfg Config, binance *BinanceClient, notifier *TelegramNotifier, chatID int64, days int, state *MonitorState) {
+	report, err := buildPnLHistoryTable(ctx, cfg, state, binance, days)
+	if err != nil {
+		safeSendToChat(notifier, chatID, fmt.Sprintf("PnL History error: %v", err), pnlHistoryMenuKeyboard())
+		return
+	}
+	safeSendPreLargeToChat(notifier, chatID, report, pnlHistoryMenuKeyboard())
 }

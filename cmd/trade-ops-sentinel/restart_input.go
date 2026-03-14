@@ -16,3 +16,20 @@ func isAwaitingFreqtradeRestartInput(chatID int64) bool {
 	_, ok := customFreqtradeRestartInput.awaiting[chatID]
 	return ok
 }
+
+func setAwaitingPnLHistoryInput(chatID int64, v bool) {
+	customPnLHistoryInput.mu.Lock()
+	defer customPnLHistoryInput.mu.Unlock()
+	if v {
+		customPnLHistoryInput.awaiting[chatID] = true
+		return
+	}
+	delete(customPnLHistoryInput.awaiting, chatID)
+}
+
+func isAwaitingPnLHistoryInput(chatID int64) bool {
+	customPnLHistoryInput.mu.Lock()
+	defer customPnLHistoryInput.mu.Unlock()
+	_, ok := customPnLHistoryInput.awaiting[chatID]
+	return ok
+}

@@ -53,8 +53,18 @@ func reportsKeyboard() *inlineKeyboardMarkup {
 			{{Text: "PnL D", CallbackData: "pnl_day"}, {Text: "PnL W", CallbackData: "pnl_week"}, {Text: "PnL M", CallbackData: "pnl_month"}},
 			{{Text: "Trades D", CallbackData: "trades_day"}, {Text: "Trades W", CallbackData: "trades_week"}, {Text: "Trades M", CallbackData: "trades_month"}},
 			{{Text: "Leaders D", CallbackData: "leaders_day"}, {Text: "Leaders W", CallbackData: "leaders_week"}, {Text: "Leaders M", CallbackData: "leaders_month"}},
-			{{Text: "PnL 7d Table", CallbackData: "pnl_7d_table"}},
+			{{Text: "PnL 7d Table", CallbackData: "pnl_7d_table"}, {Text: "📉 PnL History", CallbackData: "pnl_history_menu"}},
 			{{Text: "Back", CallbackData: "menu_main"}},
+		},
+	}
+}
+
+func pnlHistoryMenuKeyboard() *inlineKeyboardMarkup {
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "History 7d", CallbackData: "pnl_history_7d"}, {Text: "History 30d", CallbackData: "pnl_history_30d"}},
+			{{Text: "History Custom", CallbackData: "pnl_history_custom"}},
+			{{Text: "Back", CallbackData: "menu_reports"}},
 		},
 	}
 }
@@ -309,6 +319,7 @@ func settingsKeyboard() *inlineKeyboardMarkup {
 			{{Text: "Chart Size", CallbackData: "chart_size_menu"}},
 			{{Text: "Chart Labels", CallbackData: "chart_labels_menu"}},
 			{{Text: "Chart Grid", CallbackData: "chart_grid_menu"}},
+			{{Text: "Chart Mode", CallbackData: "chart_mode_menu"}},
 			{{Text: "PnL Emojis", CallbackData: "pnl_emoji_menu"}},
 			{{Text: "Alert Settings", CallbackData: "alerts_menu"}},
 			{{Text: "Settings Overview", CallbackData: "settings_overview"}},
@@ -431,6 +442,21 @@ func pnlEmojiKeyboard(enabled bool) *inlineKeyboardMarkup {
 		InlineKeyboard: [][]inlineKeyboardButton{
 			{{Text: "Emojis ON", CallbackData: "pnl_emoji_on"}, {Text: "Emojis OFF", CallbackData: "pnl_emoji_off"}},
 			{{Text: label, CallbackData: "settings_ignore"}},
+			{{Text: "Back", CallbackData: "menu_settings"}},
+		},
+	}
+}
+
+func chartLabelModeKeyboard(current string) *inlineKeyboardMarkup {
+	c := strings.ToLower(strings.TrimSpace(current))
+	if c != "horizontal" && c != "vertical" {
+		c = "staggered"
+	}
+	return &inlineKeyboardMarkup{
+		InlineKeyboard: [][]inlineKeyboardButton{
+			{{Text: "Horizontal", CallbackData: "chart_mode_horizontal"}, {Text: "Vertical", CallbackData: "chart_mode_vertical"}},
+			{{Text: "Staggered", CallbackData: "chart_mode_staggered"}},
+			{{Text: "Current: " + strings.Title(c), CallbackData: "settings_ignore"}},
 			{{Text: "Back", CallbackData: "menu_settings"}},
 		},
 	}
