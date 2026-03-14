@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	telegramiface "trade-ops-sentinel/internal/interfaces/telegram"
 )
 
 func RegisterAllHandlers(r *MenuRegistry) {
@@ -127,7 +127,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 	// Settings Handlers
 	r.RegisterHandler("fee_currency_menu", func(c *MenuContext) error {
 		current := c.State.getDisplayCurrency(c.Cfg.FeeMainCurrency)
-		c.Notifier.setKeyboard("temp_currency", feeCurrencyKeyboard())
+		GetMenuRegistry().SetKeyboard("temp_currency", feeCurrencyKeyboard())
 		c.Reply(fmt.Sprintf("Choose display currency (current: %s):", current), "temp_currency")
 		return nil
 	})
@@ -135,7 +135,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("chart_theme_menu", func(c *MenuContext) error {
 		current := c.State.getChartTheme("dark")
-		c.Notifier.setKeyboard("temp_theme", chartThemeKeyboard(current))
+		GetMenuRegistry().SetKeyboard("temp_theme", chartThemeKeyboard(current))
 		c.Reply(fmt.Sprintf("Choose chart theme (current: %s):", strings.Title(current)), "temp_theme")
 		return nil
 	})
@@ -143,7 +143,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("chart_size_menu", func(c *MenuContext) error {
 		current := c.State.getChartSize("standard")
-		c.Notifier.setKeyboard("temp_size", chartSizeKeyboard(current))
+		GetMenuRegistry().SetKeyboard("temp_size", chartSizeKeyboard(current))
 		c.Reply(fmt.Sprintf("Choose chart size (current: %s):", strings.Title(current)), "temp_size")
 		return nil
 	})
@@ -151,7 +151,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("chart_labels_menu", func(c *MenuContext) error {
 		enabled := c.State.getChartLabelsEnabled(true)
-		c.Notifier.setKeyboard("temp_labels", chartLabelsKeyboard(enabled))
+		GetMenuRegistry().SetKeyboard("temp_labels", chartLabelsKeyboard(enabled))
 		c.Reply(fmt.Sprintf("Chart value labels are currently: %t", enabled), "temp_labels")
 		return nil
 	})
@@ -159,7 +159,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("chart_grid_menu", func(c *MenuContext) error {
 		enabled := c.State.getChartGridEnabled(true)
-		c.Notifier.setKeyboard("temp_grid", chartGridKeyboard(enabled))
+		GetMenuRegistry().SetKeyboard("temp_grid", chartGridKeyboard(enabled))
 		c.Reply(fmt.Sprintf("Chart grid is currently: %t", enabled), "temp_grid")
 		return nil
 	})
@@ -167,7 +167,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("pnl_emoji_menu", func(c *MenuContext) error {
 		enabled := c.State.getPnLEmojisEnabled(true)
-		c.Notifier.setKeyboard("temp_emojis", pnlEmojiKeyboard(enabled))
+		GetMenuRegistry().SetKeyboard("temp_emojis", pnlEmojiKeyboard(enabled))
 		c.Reply(fmt.Sprintf("PnL emojis are currently: %t", enabled), "temp_emojis")
 		return nil
 	})
@@ -175,7 +175,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 
 	r.RegisterHandler("chart_mode_menu", func(c *MenuContext) error {
 		current := c.State.getChartLabelMode("staggered")
-		c.Notifier.setKeyboard("temp_mode", chartLabelModeKeyboard(current))
+		GetMenuRegistry().SetKeyboard("temp_mode", chartLabelModeKeyboard(current))
 		c.Reply(fmt.Sprintf("Choose chart label mode (current: %s):", strings.Title(current)), "temp_mode")
 		return nil
 	})
@@ -188,7 +188,7 @@ func RegisterAllHandlers(r *MenuRegistry) {
 			heartbeatEnabled = runtimeAlerts.heartbeatAlertsOn()
 			apiEnabled = runtimeAlerts.apiFailureAlertsOn()
 		}
-		c.Notifier.setKeyboard("temp_alerts", alertSettingsKeyboard(heartbeatEnabled, apiEnabled))
+		GetMenuRegistry().SetKeyboard("temp_alerts", alertSettingsKeyboard(heartbeatEnabled, apiEnabled))
 		c.Reply("Toggle runtime alerts:", "temp_alerts")
 		return nil
 	})
@@ -632,7 +632,7 @@ func handleComplexCallback(c *MenuContext) error {
 		c.State.addCustomCumWindow(token)
 		_ = c.State.save()
 		setAwaitingCustomCumProfitWindow(chatID, false)
-		c.Notifier.setKeyboard("temp_cum_gran", customCumProfitGranularityKeyboard(token))
+		GetMenuRegistry().SetKeyboard("temp_cum_gran", customCumProfitGranularityKeyboard(token))
 		c.Reply(fmt.Sprintf("Window %s selected. Choose timeline mode:", label), "temp_cum_gran")
 		return nil
 
@@ -685,7 +685,7 @@ func handleComplexCallback(c *MenuContext) error {
 			if phase == "to" {
 				prompt = "Pick TO date:"
 			}
-			c.Notifier.setKeyboard("temp_calendar", customCumProfitCalendarKeyboard(phase, year, month))
+			GetMenuRegistry().SetKeyboard("temp_calendar", customCumProfitCalendarKeyboard(phase, year, month))
 			c.Reply(prompt, "temp_calendar")
 			return nil
 		case "day":
@@ -701,12 +701,12 @@ func handleComplexCallback(c *MenuContext) error {
 			if phase == "from" {
 				setCalendarRangeFromDate(chatID, dt)
 				setCalendarRangePhase(chatID, "from_hour")
-				c.Notifier.setKeyboard("temp_hour", customCumProfitHourKeyboard("from"))
+				GetMenuRegistry().SetKeyboard("temp_hour", customCumProfitHourKeyboard("from"))
 				c.Reply(fmt.Sprintf("FROM date %s selected. Pick FROM hour:", dt.Format("2006-01-02")), "temp_hour")
 			} else {
 				setCalendarRangeToDate(chatID, dt)
 				setCalendarRangePhase(chatID, "to_hour")
-				c.Notifier.setKeyboard("temp_hour_to", customCumProfitHourKeyboard("to"))
+				GetMenuRegistry().SetKeyboard("temp_hour_to", customCumProfitHourKeyboard("to"))
 				c.Reply(fmt.Sprintf("TO date %s selected. Pick TO hour:", dt.Format("2006-01-02")), "temp_hour_to")
 			}
 			return nil
@@ -733,7 +733,7 @@ func handleComplexCallback(c *MenuContext) error {
 				}
 				setCalendarRangeFromDate(chatID, from)
 				setCalendarRangePhase(chatID, "to_day")
-				c.Notifier.setKeyboard("temp_cal_to", customCumProfitCalendarKeyboard("to", from.Year(), from.Month()))
+				GetMenuRegistry().SetKeyboard("temp_cal_to", customCumProfitCalendarKeyboard("to", from.Year(), from.Month()))
 				c.Reply(fmt.Sprintf("FROM set to %s UTC. Now pick TO date:", from.Format("2006-01-02 15:04")), "temp_cal_to")
 			} else {
 				if st.To.IsZero() || st.From.IsZero() {
@@ -746,12 +746,12 @@ func handleComplexCallback(c *MenuContext) error {
 					return nil
 				}
 				if !to.After(st.From) {
-					c.Notifier.setKeyboard("temp_cal_to_err", customCumProfitCalendarKeyboard("to", st.From.Year(), st.From.Month()))
+					GetMenuRegistry().SetKeyboard("temp_cal_to_err", customCumProfitCalendarKeyboard("to", st.From.Year(), st.From.Month()))
 					c.Reply("Invalid TO range. FROM must be older than TO.", "temp_cal_to_err")
 					return nil
 				}
 				clearCalendarRangeState(chatID)
-				c.Notifier.setKeyboard("temp_cal_range", customCumProfitDateRangeGranularityKeyboard(st.From.Unix(), to.Unix()))
+				GetMenuRegistry().SetKeyboard("temp_cal_range", customCumProfitDateRangeGranularityKeyboard(st.From.Unix(), to.Unix()))
 				c.Reply(fmt.Sprintf("Range: %s -> %s UTC. Choose timeline:", st.From.Format("2006-01-02 15:04"), to.Format("2006-01-02 15:04")), "temp_cal_range")
 			}
 			return nil
@@ -769,7 +769,7 @@ func handleComplexCallback(c *MenuContext) error {
 			return nil
 		}
 		setRangeFromSelection(chatID, fromToken)
-		c.Notifier.setKeyboard("temp_range_to", customCumProfitRangeToKeyboard(fromToken))
+		GetMenuRegistry().SetKeyboard("temp_range_to", customCumProfitRangeToKeyboard(fromToken))
 		c.Reply(fmt.Sprintf("From set: %s ago. Choose TO:", fromLabel), "temp_range_to")
 		return nil
 
@@ -781,18 +781,18 @@ func handleComplexCallback(c *MenuContext) error {
 		toToken := route.Parts[0]
 		fromToken, okFrom := getRangeFromSelection(chatID)
 		if !okFrom {
-			c.Notifier.setKeyboard("temp_range_from", customCumProfitRangeFromKeyboard())
+			GetMenuRegistry().SetKeyboard("temp_range_from", customCumProfitRangeFromKeyboard())
 			c.Reply("Please choose FROM first.", "temp_range_from")
 			return nil
 		}
 		fromAgo, fromLabel, okA := parseRangeAgoToken(fromToken)
 		toAgo, toLabel, okB := parseRangeAgoToken(toToken)
 		if !okA || !okB || fromAgo <= toAgo {
-			c.Notifier.setKeyboard("temp_range_to_err", customCumProfitRangeToKeyboard(fromToken))
+			GetMenuRegistry().SetKeyboard("temp_range_to_err", customCumProfitRangeToKeyboard(fromToken))
 			c.Reply("Invalid TO range. FROM must be older than TO.", "temp_range_to_err")
 			return nil
 		}
-		c.Notifier.setKeyboard("temp_range_gran", customCumProfitRangeGranularityKeyboard(fromToken, toToken))
+		GetMenuRegistry().SetKeyboard("temp_range_gran", customCumProfitRangeGranularityKeyboard(fromToken, toToken))
 		c.Reply(fmt.Sprintf("Range: %s ago -> %s ago. Choose timeline:", fromLabel, toLabel), "temp_range_gran")
 		return nil
 
@@ -804,7 +804,7 @@ func handleComplexCallback(c *MenuContext) error {
 		fromAgo, fromLabel, okA := parseRangeAgoToken(route.Parts[0])
 		toAgo, toLabel, okB := parseRangeAgoToken(route.Parts[1])
 		if !okA || !okB || fromAgo <= toAgo {
-			c.Notifier.setKeyboard("temp_range_from_err", customCumProfitRangeFromKeyboard())
+			GetMenuRegistry().SetKeyboard("temp_range_from_err", customCumProfitRangeFromKeyboard())
 			c.Reply("Invalid range. FROM must be older than TO.", "temp_range_from_err")
 			return nil
 		}
@@ -843,7 +843,7 @@ func handleComplexCallback(c *MenuContext) error {
 			c.Reply("Invalid history range.", "menu_charts")
 			return nil
 		}
-		c.Notifier.setKeyboard("temp_cal_range", customCumProfitDateRangeGranularityKeyboard(from.Unix(), to.Unix()))
+		GetMenuRegistry().SetKeyboard("temp_cal_range", customCumProfitDateRangeGranularityKeyboard(from.Unix(), to.Unix()))
 		c.Reply(fmt.Sprintf("Range: %s -> %s UTC. Choose timeline:", from.Format("2006-01-02 15:04"), to.Format("2006-01-02 15:04")), "temp_cal_range")
 		return nil
 
@@ -908,5 +908,24 @@ func handleFeesReport(c *MenuContext) error {
 		}
 	}
 	c.Reply(fmt.Sprintf("Fees consumed (%s): %s%s", title, feeText, note), "menu_main")
+	return nil
+}
+
+func handleFreqtradeRestart(c *MenuContext) error {
+	data := c.Update.CallbackQuery.Data
+	if data == "ft_restart_custom" {
+		setAwaitingFreqtradeRestartInput(c.Update.CallbackQuery.Message.Chat.ID, true)
+		c.Reply("Type restart delay (e.g. `10m`, `1h`, `1d`) or `cancel`:", "menu_actions")
+		return nil
+	}
+	durTag := strings.TrimPrefix(data, "ft_restart_")
+	dur, err := time.ParseDuration(durTag)
+	if err != nil {
+		return fmt.Errorf("invalid duration: %v", err)
+	}
+	restartAt := time.Now().UTC().Add(dur)
+	c.State.setFreqtradeRestartAt(restartAt)
+	_ = c.State.save()
+	c.Reply(fmt.Sprintf("✅ Freqtrade restart scheduled at %s UTC (in %v).", restartAt.Format("15:04:05"), dur.Round(time.Second)), "menu_main")
 	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strings"
 )
 
@@ -61,6 +60,27 @@ func (r *MenuRegistry) RegisterMenu(m Menu) {
 
 func (r *MenuRegistry) RegisterHandler(callbackData string, handler MenuHandler) {
 	r.Handlers[callbackData] = handler
+}
+
+func (r *MenuRegistry) SetKeyboard(menuID string, keyboard *inlineKeyboardMarkup) {
+	if keyboard == nil {
+		return
+	}
+	rows := make([][]MenuItem, 0, len(keyboard.InlineKeyboard))
+	for _, row := range keyboard.InlineKeyboard {
+		mRow := make([]MenuItem, 0, len(row))
+		for _, btn := range row {
+			mRow = append(mRow, MenuItem{
+				Text:         btn.Text,
+				CallbackData: btn.CallbackData,
+			})
+		}
+		rows = append(rows, mRow)
+	}
+	r.Menus[menuID] = Menu{
+		ID:   menuID,
+		Rows: rows,
+	}
 }
 
 func (r *MenuRegistry) GetKeyboard(menuID string) *inlineKeyboardMarkup {
